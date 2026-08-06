@@ -1,0 +1,6 @@
+{
+  "name": "Dream Setup Estimator",
+  "description": "Estimate the total cost of your dream setups with clarity and smart AI price estimates.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
