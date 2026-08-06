@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Sparkles, Trash2, Edit2, Check, X, Info } from 'lucide-react';
-import { Setup, SetupItem, Currency, ConfidenceLevel } from '../types';
+import { Setup, SetupItem, Currency, ConfidenceLevel, ItemStatus, PaymentMethod, PaymentDetails } from '../types';
+import { ItemFormModal } from "./ItemFormModal";
 
 interface SetupDetailProps {
   setup: Setup;
@@ -65,6 +66,7 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
   } | null>(null);
 
   const setupItems = items.filter((i) => i.setupId === setup.id);
+  const isRecurring = setup.category === 'Recurring Expenses';
   const setupTotalCost = setupItems.reduce((sum, item) => sum + item.estimatedPrice * item.quantity, 0);
 
   // Handle AI price estimate for new item
@@ -250,36 +252,38 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
         </button>
       </div>
 
-      {/* Setup Title & Header Banner */}
-      <div className="bg-[#0d121f] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl -ml-16 -mb-16 pointer-events-none"></div>
+      {/* Combined Setup Banner & Items Table */}
+      <div className="bg-[#0d121f] rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white flex flex-col">
+        {/* Setup Title & Header Banner */}
+        <div className="p-6 md:p-8 relative">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl -ml-16 -mb-16 pointer-events-none"></div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
-          <div className="space-y-1.5">
-            <div className="text-2xs font-semibold uppercase tracking-wide text-blue-400 bg-blue-950/40 px-2.5 py-1 rounded inline-block">
-              {setup.category}
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
+            <div className="space-y-1.5">
+              <div className="text-2xs font-semibold uppercase tracking-wide text-blue-400 bg-blue-950/40 px-2.5 py-1 rounded inline-block">
+                {setup.category}
+              </div>
+              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight mt-1">
+                {setup.title}
+              </h1>
+              {setup.description && (
+                <p className="text-sm text-slate-300 max-w-xl leading-relaxed">{setup.description}</p>
+              )}
             </div>
-            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight mt-1">
-              {setup.title}
-            </h1>
-            {setup.description && (
-              <p className="text-sm text-slate-300 max-w-xl leading-relaxed">{setup.description}</p>
-            )}
-          </div>
 
-          <div className="text-left md:text-right shrink-0 space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">Total cost</span>
-            <div className="text-3xl md:text-4xl font-black text-white tracking-tight">
-              {setupTotalCost.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
+            <div className="text-left md:text-right shrink-0 space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">{isRecurring ? "Monthly Cost" : "Total Cost"}</span>
+              <div className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                {setupTotalCost.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Setup Items Table & Total Breakdown */}
-      <div className="bg-[#0e1422] rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-5 flex items-center justify-between bg-slate-950/40">
+        {/* Setup Items Table & Total Breakdown */}
+        <div className="bg-[#0c111c] border-t border-slate-800/50">
+          <div className="p-5 flex items-center justify-between bg-[#0e1422]">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Setup Items ({setupItems.length})
           </h3>
@@ -341,6 +345,28 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
                     {item.notes && (
                       <div className="text-xs text-slate-500 font-normal italic">{item.notes}</div>
                     )}
+
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide ${
+                          (item.status === 'Purchased' || item.status === 'Active') ? 'bg-emerald-950/40 text-emerald-400' :
+                          item.status === 'Ready to Buy' ? 'bg-amber-950/40 text-amber-400' :
+                          'bg-slate-800 text-slate-400'
+                        }`}>
+                          {item.status || 'Planning'}
+                        </span>
+                      
+                      {item.status === 'Purchased' && item.paymentMethod === 'EMI' && (
+                        <span className="text-[10px] bg-blue-950/40 text-blue-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                          EMI: {item.paymentDetails?.monthlyEMI?.toLocaleString()} {currency.code}/mo
+                        </span>
+                      )}
+                      {item.status === 'Purchased' && item.paymentMethod === 'Loan' && (
+                        <span className="text-[10px] bg-emerald-950/40 text-emerald-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                          Loan: {item.paymentDetails?.monthlyPayment?.toLocaleString()} {currency.code}/mo
+                        </span>
+                      )}
+                    </div>
+
                   </div>
 
                   {/* Quantity */}
@@ -393,390 +419,47 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
             </div>
           </div>
         )}
+        </div>
       </div>
 
+
       {/* Add Item Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#03050a]/90 backdrop-blur-sm">
-          <div className="bg-[#0c111c] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-slate-100 flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="p-4 sm:p-5 flex items-center justify-between bg-[#0e1422] shrink-0">
-              <div>
-                <h2 className="text-base font-bold text-slate-100 tracking-tight">
-                  Add Item to {setup.title}
-                </h2>
-              </div>
-              <button
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setAiEstimate(null);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Form */}
-            <form
-              onSubmit={(e) => {
-                handleAddItemSubmit(e);
-                setIsAddModalOpen(false);
-              }}
-              className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto flex-1"
-            >
-              {/* Item Name */}
-              <div className="space-y-1">
-                <label className="block text-slate-300 font-medium">Item Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Bed, Air Conditioner, Desk"
-                  className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                {/* Brand */}
-                <div className="space-y-1">
-                  <label className="block text-slate-300 font-medium">Brand (optional)</label>
-                  <input
-                     type="text"
-                     value={brand}
-                     onChange={(e) => setBrand(e.target.value)}
-                     placeholder="e.g. IKEA, LG"
-                     className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                  />
-                </div>
-
-                {/* Model */}
-                <div className="space-y-1">
-                  <label className="block text-slate-300 font-medium">Model (optional)</label>
-                  <input
-                    type="text"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    placeholder="e.g. Lisabo"
-                    className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                {/* Quantity */}
-                <div className="space-y-1">
-                  <label className="block text-slate-300 font-medium">Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                    className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs"
-                  />
-                </div>
-
-                {/* Price Input & AI Estimate Trigger */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-slate-300 font-medium">
-                      Price ({currency.code})
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleEstimatePrice}
-                      disabled={!name.trim() || isEstimating}
-                      className="text-2xs text-blue-400 hover:text-blue-300 disabled:opacity-40 font-bold inline-flex items-center space-x-1 cursor-pointer"
-                    >
-                      <Sparkles className="w-3 h-3 text-amber-500" />
-                      <span>{isEstimating ? 'Estimating...' : 'AI Estimate'}</span>
-                    </button>
-                  </div>
-
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={priceInput}
-                    onChange={(e) => setPriceInput(e.target.value)}
-                    placeholder="Manual price"
-                    className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                  />
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div className="space-y-1">
-                <label className="block text-slate-300 font-medium">Notes (optional)</label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Additional notes or specifications..."
-                  className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                />
-              </div>
-
-              {/* AI Estimate Returned Box */}
-              {aiEstimate && (
-                <div className="bg-slate-900 rounded-xl p-3 text-xs space-y-2">
-                  <div className="flex items-center justify-between text-slate-100 font-semibold">
-                    <span className="inline-flex items-center space-x-1 text-blue-400 font-bold">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>AI Market Estimate Result</span>
-                    </span>
-                    <span className="text-2xs bg-slate-950 text-slate-300 px-2 py-0.5 rounded font-sans font-medium">
-                      Confidence: {aiEstimate.confidence}
-                    </span>
-                  </div>
-
-                  <div className="flex items-baseline space-x-4 text-slate-200">
-                    <div>
-                      <span className="text-2xs text-slate-500 block">Estimated Price</span>
-                      <span className="text-sm font-bold text-blue-400">
-                        {aiEstimate.estimatedPrice.toLocaleString()} {currency.code}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-2xs text-slate-500 block">Expected Range</span>
-                      <span className="text-xs text-slate-400 font-medium">
-                        {aiEstimate.priceRangeMin.toLocaleString()} - {aiEstimate.priceRangeMax.toLocaleString()} {currency.code}
-                      </span>
-                    </div>
-                  </div>
-
-                  {aiEstimate.notes && (
-                    <p className="text-2xs text-slate-500 pt-1">
-                      {aiEstimate.notes}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleApplyAiEstimate}
-                    className="text-2xs text-blue-400 font-bold hover:underline cursor-pointer"
-                  >
-                    Use this estimated price
-                  </button>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="pt-3 flex items-center justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setAiEstimate(null);
-                  }}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.25)] flex items-center space-x-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Item</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ItemFormModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={(data) => {
+          onAddItem({ ...data, setupId: setup.id } as Omit<SetupItem, 'id'>);
+          setIsAddModalOpen(false);
+        }}
+        setupTitle={setup.title}
+        setupCategory={setup.category}
+        setupSubCategory={setup.subCategory}
+        currency={currency}
+        country={country}
+      />
 
       {/* Edit Item Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#03050a]/90 backdrop-blur-sm">
-          <div className="bg-[#0c111c] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-slate-100 flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="p-4 sm:p-5 flex items-center justify-between bg-[#0e1422] shrink-0">
-              <div>
-                <h2 className="text-base font-bold text-slate-100 tracking-tight">
-                  Edit Item in {setup.title}
-                </h2>
-              </div>
-              <button
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingItemId(null);
-                  setEditAiEstimate(null);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <ItemFormModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingItemId(null);
+        }}
+        onSubmit={(data) => {
+          if (editingItemId) {
+            onUpdateItem(editingItemId, data);
+            setIsEditModalOpen(false);
+            setEditingItemId(null);
+          }
+        }}
+        initialData={items.find(i => i.id === editingItemId)}
+        setupTitle={setup.title}
+        setupCategory={setup.category}
+        setupSubCategory={setup.subCategory}
+        currency={currency}
+        country={country}
+      />
 
-            {/* Form */}
-            <form
-              onSubmit={handleEditItemSubmit}
-              className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto flex-1"
-            >
-              {/* Item Name */}
-              <div className="space-y-1">
-                <label className="block text-slate-300 font-medium">Item Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="e.g. Bed, Air Conditioner, Desk"
-                  className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                {/* Brand */}
-                <div className="space-y-1">
-                  <label className="block text-slate-300 font-medium">Brand (optional)</label>
-                  <input
-                    type="text"
-                    value={editBrand}
-                    onChange={(e) => setEditBrand(e.target.value)}
-                    placeholder="e.g. IKEA, LG"
-                    className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                  />
-                </div>
-
-                {/* Model */}
-                <div className="space-y-1">
-                  <label className="block text-slate-300 font-medium">Model (optional)</label>
-                  <input
-                    type="text"
-                    value={editModel}
-                    onChange={(e) => setEditModel(e.target.value)}
-                    placeholder="e.g. Lisabo"
-                    className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                {/* Quantity */}
-                <div className="space-y-1">
-                  <label className="block text-slate-300 font-medium">Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editQuantity}
-                    onChange={(e) => setEditQuantity(parseInt(e.target.value) || 1)}
-                    className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs"
-                  />
-                </div>
-
-                {/* Price Input & AI Estimate Trigger */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-slate-300 font-medium">
-                      Price ({currency.code})
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleEditEstimatePrice}
-                      disabled={!editName.trim() || isEditEstimating}
-                      className="text-2xs text-blue-400 hover:text-blue-300 disabled:opacity-40 font-bold inline-flex items-center space-x-1 cursor-pointer"
-                    >
-                      <Sparkles className="w-3 h-3 text-amber-500" />
-                      <span>{isEditEstimating ? 'Estimating...' : 'AI Estimate'}</span>
-                    </button>
-                  </div>
-
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={editPrice}
-                    onChange={(e) => setEditPrice(e.target.value)}
-                    placeholder="Manual price"
-                    className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                  />
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div className="space-y-1">
-                <label className="block text-slate-300 font-medium">Notes (optional)</label>
-                <input
-                  type="text"
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Additional notes or specifications..."
-                  className="w-full bg-slate-950 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-slate-950 transition-colors text-xs placeholder-slate-500"
-                />
-              </div>
-
-              {/* AI Estimate Returned Box */}
-              {editAiEstimate && (
-                <div className="bg-slate-900 rounded-xl p-3 text-xs space-y-2">
-                  <div className="flex items-center justify-between text-slate-100 font-semibold">
-                    <span className="inline-flex items-center space-x-1 text-blue-400 font-bold">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>AI Market Estimate Result</span>
-                    </span>
-                    <span className="text-2xs bg-slate-950 text-slate-300 px-2 py-0.5 rounded font-sans font-medium">
-                      Confidence: {editAiEstimate.confidence}
-                    </span>
-                  </div>
-
-                  <div className="flex items-baseline space-x-4 text-slate-200">
-                    <div>
-                      <span className="text-2xs text-slate-500 block">Estimated Price</span>
-                      <span className="text-sm font-bold text-blue-400">
-                        {editAiEstimate.estimatedPrice.toLocaleString()} {currency.code}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-2xs text-slate-500 block">Expected Range</span>
-                      <span className="text-xs text-slate-400 font-medium">
-                        {editAiEstimate.priceRangeMin.toLocaleString()} - {editAiEstimate.priceRangeMax.toLocaleString()} {currency.code}
-                      </span>
-                    </div>
-                  </div>
-
-                  {editAiEstimate.notes && (
-                    <p className="text-2xs text-slate-500 pt-1">
-                      {editAiEstimate.notes}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleApplyEditAiEstimate}
-                    className="text-2xs text-blue-400 font-bold hover:underline cursor-pointer"
-                  >
-                    Use this estimated price
-                  </button>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="pt-3 flex items-center justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditModalOpen(false);
-                    setEditingItemId(null);
-                    setEditAiEstimate(null);
-                  }}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.25)] flex items-center space-x-1.5"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Save Changes</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

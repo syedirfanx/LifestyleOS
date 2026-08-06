@@ -7,6 +7,7 @@ import { Dashboard } from './components/Dashboard';
 import { SetupDetail } from './components/SetupDetail';
 import { NewSetupModal } from './components/NewSetupModal';
 import { StarsBackground } from './components/StarsBackground';
+import { TrackerPage } from './components/TrackerPage';
 
 export default function App() {
   const [currentCurrency, setCurrentCurrency] = useState<Currency>(() => {
@@ -50,13 +51,14 @@ export default function App() {
   });
 
   const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
+  const [activeTracker, setActiveTracker] = useState<'emi' | 'loans' | 'recurring' | null>(null);
   const [isNewSetupModalOpen, setIsNewSetupModalOpen] = useState(false);
   const [isSuggestingItems, setIsSuggestingItems] = useState(false);
 
   // Scroll to top when active setup changes or navigation happens
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [activeSetupId]);
+  }, [activeSetupId, activeTracker]);
 
   // Function to detect and set GPS / IP location & local currency
   const handleDetectLocation = useCallback(async () => {
@@ -208,9 +210,18 @@ export default function App() {
           onNewSetup={() => setIsNewSetupModalOpen(true)}
         />
 
+        
         {/* Main Container */}
         <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-6 relative z-10 pb-12">
-        {activeSetupId && activeSetup ? (
+        {activeTracker ? (
+          <TrackerPage
+            items={items}
+            setups={setups}
+            currency={currentCurrency}
+            trackerType={activeTracker}
+            onBack={() => setActiveTracker(null)}
+          />
+        ) : activeSetupId && activeSetup ? (
           <SetupDetail
             setup={activeSetup}
             items={items}
@@ -231,6 +242,7 @@ export default function App() {
             onSelectSetup={setActiveSetupId}
             onNewSetup={() => setIsNewSetupModalOpen(true)}
             onDeleteSetup={handleDeleteSetup}
+            onNavigateToTracker={(tracker) => setActiveTracker(tracker)}
           />
         )}
       </main>

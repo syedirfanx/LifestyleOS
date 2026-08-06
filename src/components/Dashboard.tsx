@@ -3,7 +3,13 @@ import { Plus, Trash2, ChevronRight, Box } from 'lucide-react';
 import { Setup, SetupItem, Currency } from '../types';
 import { AreaIcon } from './AreaIcon';
 
+import { CreditCard, CalendarClock, Home, Landmark } from 'lucide-react';
+
+
+
 interface DashboardProps {
+  onNavigateToTracker?: (tracker: 'emi' | 'loans' | 'recurring') => void;
+
   setups: Setup[];
   items: SetupItem[];
   currency: Currency;
@@ -19,14 +25,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onSelectSetup,
   onNewSetup,
   onDeleteSetup,
+  onNavigateToTracker,
 }) => {
   // Calculate total dream cost across all setups
-  const totalDreamCost = items.reduce((sum, item) => sum + item.estimatedPrice * item.quantity, 0);
+  
+  
+const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses').map(s => s.id);
+  const assetItems = items.filter(i => !recurringSetupIds.includes(i.setupId));
+  const recurringItems = items.filter(i => recurringSetupIds.includes(i.setupId));
 
+  const totalDreamCost = assetItems.reduce((sum, item) => sum + item.estimatedPrice * item.quantity, 0);
+  
+  const purchasedItems = assetItems.filter(i => i.status === 'Purchased');
+  const purchasedValue = purchasedItems.reduce((sum, item) => sum + item.estimatedPrice * item.quantity, 0);
+  const outstandingDreamValue = totalDreamCost - purchasedValue;
+
+  const monthlyEMI = assetItems.filter(i => i.paymentMethod === 'EMI' && i.status === 'Purchased').reduce((sum, item) => sum + (item.paymentDetails?.monthlyEMI || 0), 0);
+  const monthlyLoans = assetItems.filter(i => i.paymentMethod === 'Loan' && i.status === 'Purchased').reduce((sum, item) => sum + (item.paymentDetails?.monthlyPayment || 0), 0);
+  
+  const getSubCatMonthlySum = (subCategoryMatch) => {
+    const sIds = setups.filter(s => s.category === 'Recurring Expenses' && s.subCategory === subCategoryMatch).map(s => s.id);
+    return items.filter(i => sIds.includes(i.setupId) && i.status === 'Active').reduce((sum, item) => sum + (item.paymentDetails?.monthlyCost || item.estimatedPrice || 0), 0);
+  };
+
+  const monthlyRent = getSubCatMonthlySum('Housing');
+  const monthlyUtilities = getSubCatMonthlySum('Utilities');
+  const monthlySubscriptions = getSubCatMonthlySum('Subscriptions');
+  const monthlyMemberships = getSubCatMonthlySum('Memberships');
+  const monthlyInsurance = getSubCatMonthlySum('Insurance');
+
+  const purchasedRecurringItems = recurringItems.filter(i => i.status === 'Active');
+  const totalMonthlyCommitment = monthlyEMI + monthlyLoans + purchasedRecurringItems.reduce((sum, i) => sum + (i.paymentDetails?.monthlyCost || i.estimatedPrice || 0), 0);
   const getSetupCost = (setupId: string) => {
+    const isRecurring = setups.find(s => s.id === setupId)?.category === 'Recurring Expenses';
     return items
       .filter((i) => i.setupId === setupId)
-      .reduce((sum, item) => sum + item.estimatedPrice * item.quantity, 0);
+      .reduce((sum, item) => {
+        if (isRecurring) {
+          return sum + (item.paymentDetails?.monthlyCost || item.estimatedPrice || 0);
+        }
+        return sum + item.estimatedPrice * item.quantity;
+      }, 0);
   };
 
   const getSetupItemCount = (setupId: string) => {
@@ -39,35 +78,96 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-8 pb-16">
+      
       {/* Grand Total Hero Summary */}
-      <div className="bg-[#0d121f] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl -ml-16 -mb-16 pointer-events-none"></div>
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">
-              Total estimated cost
-            </span>
-            <div className="text-3xl md:text-4xl font-black text-white tracking-tight">
-              {totalDreamCost.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Dream Worth */}
+        <div className="bg-[#0d121f] rounded-3xl p-6 relative overflow-hidden shadow-sm text-white">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">Total Dream Worth</span>
+          <div className="text-3xl font-black text-white tracking-tight mt-1">
+            {totalDreamCost.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
+          </div>
+          <div className="flex gap-4 mt-4 pt-4 border-t border-slate-800/50">
+            <div>
+              <div className="text-xs font-semibold text-slate-400">Purchased Value</div>
+              <div className="text-sm font-bold text-slate-200">{purchasedValue.toLocaleString()} {currency.code}</div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400">Outstanding</div>
+              <div className="text-sm font-bold text-slate-200">{outstandingDreamValue.toLocaleString()} {currency.code}</div>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center space-x-8 pt-4 md:pt-0 md:pl-8 text-blue-100">
-            <div>
-              <div className="text-2xl font-black text-white">{setups.length}</div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Setups</div>
+        {/* Monthly Commitments */}
+        <div className="bg-[#0d121f] rounded-3xl p-6 relative overflow-hidden shadow-sm text-white border border-slate-800">
+          <span className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Monthly Commitments</span>
+          <div className="text-3xl font-black text-white tracking-tight mt-1">
+            {totalMonthlyCommitment.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-4 pt-4 border-t border-slate-800/50">
+            <div className="flex items-center justify-between">
+              <span className="text-2xs font-semibold text-slate-400 uppercase">EMI</span>
+              <span className="text-xs font-bold text-slate-200">{monthlyEMI.toLocaleString()}</span>
             </div>
-            <div>
-              <div className="text-2xl font-black text-white">{items.length}</div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Items</div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xs font-semibold text-slate-400 uppercase">Loans</span>
+              <span className="text-xs font-bold text-slate-200">{monthlyLoans.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xs font-semibold text-slate-400 uppercase">Rent</span>
+              <span className="text-xs font-bold text-slate-200">{monthlyRent.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xs font-semibold text-slate-400 uppercase">Utilities</span>
+              <span className="text-xs font-bold text-slate-200">{monthlyUtilities.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xs font-semibold text-slate-400 uppercase">Subs</span>
+              <span className="text-xs font-bold text-slate-200">{monthlySubscriptions.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xs font-semibold text-slate-400 uppercase">Memberships</span>
+              <span className="text-xs font-bold text-slate-200">{monthlyMemberships.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xs font-semibold text-slate-400 uppercase">Insurance</span>
+              <span className="text-xs font-bold text-slate-200">{monthlyInsurance.toLocaleString()}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Setups Grid */}
+      {/* Trackers Section */}
+      <div className="space-y-4 pt-4">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Trackers
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <button onClick={() => onNavigateToTracker?.('emi')} className="bg-[#0d121f] border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 hover:bg-[#131a2b] transition-colors group">
+            <div className="w-10 h-10 rounded-full bg-blue-900/30 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-200">EMI Tracker</span>
+          </button>
+          
+          <button onClick={() => onNavigateToTracker?.('loans')} className="bg-[#0d121f] border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 hover:bg-[#131a2b] transition-colors group">
+            <div className="w-10 h-10 rounded-full bg-emerald-900/30 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Landmark className="w-5 h-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-200">Loan Tracker</span>
+          </button>
+
+          <button onClick={() => onNavigateToTracker?.('recurring')} className="bg-[#0d121f] border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 hover:bg-[#131a2b] transition-colors group">
+            <div className="w-10 h-10 rounded-full bg-purple-900/30 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <CalendarClock className="w-5 h-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-200">Recurring Expenses</span>
+          </button>
+        </div>
+      </div>
+{/* Setups Grid */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -138,7 +238,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {/* Cost & Items Badge */}
                     <div className="bg-slate-950/60 rounded-xl p-3 flex items-center justify-between">
                       <div>
-                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">Estimated Cost</div>
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">{setup.category === "Recurring Expenses" ? "Monthly Cost" : "Estimated Cost"}</div>
                         <div className="text-base font-extrabold text-blue-400 mt-0.5">
                           {setupCost.toLocaleString()} <span className="text-xs text-slate-500 font-semibold">{currency.code}</span>
                         </div>
