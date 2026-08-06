@@ -101,7 +101,8 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
         </div>
 
         {/* Monthly Commitments */}
-        <div className="bg-[#0d121f] rounded-3xl p-6 relative overflow-hidden shadow-sm text-white border border-slate-800">
+        <div className="bg-[#0d121f] rounded-3xl p-6 relative overflow-hidden shadow-sm text-white">
+          <div className="absolute top-0 left-0 w-48 h-48 bg-emerald-600/10 rounded-full blur-3xl -ml-16 -mt-16 pointer-events-none"></div>
           <span className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Monthly Commitments</span>
           <div className="text-3xl font-black text-white tracking-tight mt-1">
             {totalMonthlyCommitment.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
@@ -145,25 +146,25 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
           Trackers
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button onClick={() => onNavigateToTracker?.('emi')} className="bg-[#0d121f] border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 hover:bg-[#131a2b] transition-colors group">
-            <div className="w-10 h-10 rounded-full bg-blue-900/30 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <CreditCard className="w-5 h-5" />
+          <button onClick={() => onNavigateToTracker?.('emi')} className="bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
+            <span className="text-sm font-bold text-slate-200 group-hover:text-blue-400 transition-colors">EMI Tracker</span>
+            <div className="text-xl font-black text-blue-400">
+              {monthlyEMI.toLocaleString()} <span className="text-xs font-semibold text-slate-500">{currency.code}</span>
             </div>
-            <span className="text-xs font-bold text-slate-200">EMI Tracker</span>
           </button>
-          
-          <button onClick={() => onNavigateToTracker?.('loans')} className="bg-[#0d121f] border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 hover:bg-[#131a2b] transition-colors group">
-            <div className="w-10 h-10 rounded-full bg-emerald-900/30 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Landmark className="w-5 h-5" />
+             
+          <button onClick={() => onNavigateToTracker?.('loans')} className="bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
+            <span className="text-sm font-bold text-slate-200 group-hover:text-emerald-400 transition-colors">Loan Tracker</span>
+            <div className="text-xl font-black text-emerald-400">
+              {monthlyLoans.toLocaleString()} <span className="text-xs font-semibold text-slate-500">{currency.code}</span>
             </div>
-            <span className="text-xs font-bold text-slate-200">Loan Tracker</span>
           </button>
 
-          <button onClick={() => onNavigateToTracker?.('recurring')} className="bg-[#0d121f] border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 hover:bg-[#131a2b] transition-colors group">
-            <div className="w-10 h-10 rounded-full bg-purple-900/30 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <CalendarClock className="w-5 h-5" />
+          <button onClick={() => onNavigateToTracker?.('recurring')} className="bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
+            <span className="text-sm font-bold text-slate-200 group-hover:text-purple-400 transition-colors">Recurring</span>
+            <div className="text-xl font-black text-purple-400">
+              {purchasedRecurringItems.reduce((sum, i) => sum + (i.paymentDetails?.monthlyCost || i.estimatedPrice || 0), 0).toLocaleString()} <span className="text-xs font-semibold text-slate-500">{currency.code}</span>
             </div>
-            <span className="text-xs font-bold text-slate-200">Recurring Expenses</span>
           </button>
         </div>
       </div>
