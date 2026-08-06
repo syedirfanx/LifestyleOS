@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { SetupDetail } from './components/SetupDetail';
 import { NewSetupModal } from './components/NewSetupModal';
+import { StarsBackground } from './components/StarsBackground';
 
 export default function App() {
   const [currentCurrency, setCurrentCurrency] = useState<Currency>(() => {
@@ -30,7 +31,7 @@ export default function App() {
 
   const [setups, setSetups] = useState<Setup[]>(() => {
     try {
-      const saved = localStorage.getItem('dream_setups_v2');
+      const saved = localStorage.getItem('dream_setups_v3');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
@@ -40,7 +41,7 @@ export default function App() {
 
   const [items, setItems] = useState<SetupItem[]>(() => {
     try {
-      const saved = localStorage.getItem('dream_items_v2');
+      const saved = localStorage.getItem('dream_items_v3');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
@@ -87,8 +88,8 @@ export default function App() {
       localStorage.setItem('dream_setup_currency', JSON.stringify(currentCurrency));
       localStorage.setItem('dream_setup_country', currentCountry);
       if (city) localStorage.setItem('dream_setup_city', city);
-      localStorage.setItem('dream_setups_v2', JSON.stringify(setups));
-      localStorage.setItem('dream_items_v2', JSON.stringify(items));
+      localStorage.setItem('dream_setups_v3', JSON.stringify(setups));
+      localStorage.setItem('dream_items_v3', JSON.stringify(items));
     } catch (e) {
       console.error(e);
     }
@@ -191,20 +192,24 @@ export default function App() {
   const activeSetup = setups.find((s) => s.id === activeSetupId);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-500 font-sans antialiased selection:bg-teal-900 selection:text-white flex flex-col">
-      {/* Top Header */}
-      <Header
-        currentCurrency={currentCurrency}
-        currentCountry={currentCountry}
-        city={city}
-        isDetectingLocation={isDetectingLocation}
-        onRefreshLocation={handleDetectLocation}
-        onSelectCurrency={(cur) => setCurrentCurrency(cur)}
-        onNewSetup={() => setIsNewSetupModalOpen(true)}
-      />
+    <div className="min-h-screen bg-[#03050a] text-slate-100 font-sans antialiased selection:bg-blue-600/30 selection:text-white flex flex-col relative overflow-hidden">
+      {/* Stars Background */}
+      <StarsBackground />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-6">
+      {/* Top Header */}
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <Header
+          currentCurrency={currentCurrency}
+          currentCountry={currentCountry}
+          city={city}
+          isDetectingLocation={isDetectingLocation}
+          onRefreshLocation={handleDetectLocation}
+          onSelectCurrency={(cur) => setCurrentCurrency(cur)}
+          onNewSetup={() => setIsNewSetupModalOpen(true)}
+        />
+
+        {/* Main Container */}
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-6 relative z-10 pb-12">
         {activeSetupId && activeSetup ? (
           <SetupDetail
             setup={activeSetup}
@@ -229,6 +234,7 @@ export default function App() {
           />
         )}
       </main>
+      </div>
 
       {/* New Setup Modal */}
       <NewSetupModal
@@ -237,13 +243,6 @@ export default function App() {
         onCreateSetup={handleCreateSetup}
       />
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-5 text-xs text-slate-500 mt-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-          <span className="font-semibold text-teal-950">Lifestyle OS</span>
-          <span className="text-slate-500">Cost Estimation Platform</span>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -15,6 +15,9 @@ import {
   Dumbbell,
   Gamepad2,
   Tv,
+  Palette,
+  Heart,
+  Baby,
   LucideProps,
 } from 'lucide-react';
 
@@ -37,10 +40,10 @@ export const AreaIcon: React.FC<AreaIconProps> = ({ name, ...props }) => {
   if (lower.includes('photo') || lower.includes('camera') || lower.includes('studio')) {
     return <Camera {...props} />;
   }
-  if (lower.includes('fashion') || lower.includes('wardrobe') || lower.includes('clothing')) {
+  if (lower.includes('fashion') || lower.includes('wardrobe') || lower.includes('clothing') || lower.includes('shirt')) {
     return <Shirt {...props} />;
   }
-  if (lower.includes('fit') || lower.includes('health') || lower.includes('gym')) {
+  if (lower.includes('fit') || lower.includes('health') || lower.includes('gym') || lower.includes('dumbbell')) {
     return <Dumbbell {...props} />;
   }
   if (lower.includes('game') || lower.includes('gaming')) {
@@ -51,6 +54,21 @@ export const AreaIcon: React.FC<AreaIconProps> = ({ name, ...props }) => {
   }
   if (lower.includes('tv') || lower.includes('living')) {
     return <Tv {...props} />;
+  }
+  if (lower.includes('palette') || lower.includes('hobby') || lower.includes('creativity')) {
+    return <Palette {...props} />;
+  }
+  if (lower.includes('heart') || lower.includes('pet')) {
+    return <Heart {...props} />;
+  }
+  if (lower.includes('baby') || lower.includes('family') || lower.includes('kid')) {
+    return <Baby {...props} />;
+  }
+  if (lower.includes('briefcase') || lower.includes('career') || lower.includes('business')) {
+    return <Briefcase {...props} />;
+  }
+  if (lower.includes('compass') || lower.includes('travel') || lower.includes('outdoor') || lower.includes('recreation')) {
+    return <Compass {...props} />;
   }
 
   return <Sparkles {...props} />;

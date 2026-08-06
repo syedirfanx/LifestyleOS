@@ -85,12 +85,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="bg-teal-950 border-b border-teal-900/80 sticky top-0 z-40 text-white shadow-xs">
+      <header className="bg-[#0f172a]/90 backdrop-blur-md sticky top-0 z-40 text-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Brand */}
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-              Lifestyle OS
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-widest text-white uppercase select-none font-logo">
+              LIFESTYLE OS
             </h1>
           </div>
 
@@ -98,35 +98,35 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center space-x-2.5 bg-teal-900 hover:bg-teal-800/90 border border-teal-800/80 rounded-xl px-3.5 py-1.5 text-white transition-colors cursor-pointer shadow-2xs"
+              className="flex items-center space-x-2 sm:space-x-3 text-slate-300 hover:text-slate-100 transition-colors cursor-pointer"
             >
-              <div className="w-6 h-6 rounded-full bg-slate-100 text-teal-950 flex items-center justify-center font-bold text-xs shrink-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm sm:text-base shrink-0 shadow-xs">
                 {firstName.charAt(0)}
               </div>
-              <span className="text-xs font-semibold text-white">{firstName}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-teal-200" />
+              <span className="text-sm font-bold hidden sm:inline">{firstName}</span>
+              <ChevronDown className="w-4 h-4 text-slate-400 hidden sm:block" />
             </button>
 
             {/* Regular Application User Dropdown */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1.5 text-xs divide-y divide-slate-100 text-slate-800">
+              <div className="absolute right-0 mt-2 w-64 bg-[#0d121f] rounded-xl shadow-xl z-50 py-1.5 text-xs text-slate-200">
                 {/* Profile Header */}
-                <div className="px-3.5 py-2.5 bg-slate-50">
-                  <p className="font-semibold text-teal-950">{firstName} {lastName}</p>
-                  <p className="text-2xs text-slate-500 truncate mt-0.5">{userEmail}</p>
+                <div className="px-3.5 py-2.5 bg-slate-950/40">
+                  <p className="font-semibold text-slate-100">{firstName} {lastName}</p>
+                  <p className="text-2xs text-slate-400 truncate mt-0.5">{userEmail}</p>
                 </div>
 
                 {/* Navigation Items */}
-                <div className="py-1">
+                <div className="py-1 text-slate-300">
                   <button
                     onClick={() => {
                       setActiveTab('profile');
                       setIsSettingsModalOpen(true);
                       setIsDropdownOpen(false);
                     }}
-                    className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-100 hover:text-teal-950 flex items-center space-x-2.5 transition-colors cursor-pointer"
+                    className="w-full text-left px-3.5 py-2 text-slate-300 hover:bg-[#131a2b] hover:text-white flex items-center space-x-2.5 transition-colors cursor-pointer"
                   >
-                    <Settings className="w-4 h-4 text-slate-500" />
+                    <Settings className="w-4 h-4 text-blue-400" />
                     <span>Account Settings</span>
                   </button>
 
@@ -136,13 +136,13 @@ export const Header: React.FC<HeaderProps> = ({
                       setIsSettingsModalOpen(true);
                       setIsDropdownOpen(false);
                     }}
-                    className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-100 hover:text-teal-950 flex items-center justify-between transition-colors cursor-pointer"
+                    className="w-full text-left px-3.5 py-2 text-slate-300 hover:bg-[#131a2b] hover:text-white flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <div className="flex items-center space-x-2.5">
-                      <Globe className="w-4 h-4 text-slate-500" />
+                      <Globe className="w-4 h-4 text-blue-400" />
                       <span>Preferences</span>
                     </div>
-                    <span className="text-2xs font-mono text-teal-950 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded font-medium">
+                    <span className="text-2xs font-sans text-blue-400 bg-blue-950/40 px-1.5 py-0.5 rounded font-semibold">
                       {currentCurrency.code}
                     </span>
                   </button>
@@ -153,9 +153,9 @@ export const Header: React.FC<HeaderProps> = ({
                       setIsSettingsModalOpen(true);
                       setIsDropdownOpen(false);
                     }}
-                    className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-100 hover:text-teal-950 flex items-center space-x-2.5 transition-colors cursor-pointer"
+                    className="w-full text-left px-3.5 py-2 text-slate-300 hover:bg-[#131a2b] hover:text-white flex items-center space-x-2.5 transition-colors cursor-pointer"
                   >
-                    <Lock className="w-4 h-4 text-slate-500" />
+                    <Lock className="w-4 h-4 text-blue-400" />
                     <span>Password & Security</span>
                   </button>
                 </div>
@@ -164,13 +164,13 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="pt-1">
                   <div className="px-3.5 py-1.5 text-2xs text-slate-400 flex justify-between items-center">
                     <span>Version</span>
-                    <span className="font-mono text-slate-500">v1.0.4</span>
+                    <span className="text-slate-500 font-medium">v1.0.4</span>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-3.5 py-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700 flex items-center space-x-2.5 transition-colors cursor-pointer"
+                    className="w-full text-left px-3.5 py-2 text-rose-400 hover:bg-rose-950/20 hover:text-rose-300 flex items-center space-x-2.5 transition-colors cursor-pointer"
                   >
-                    <LogOut className="w-4 h-4 text-rose-500" />
+                    <LogOut className="w-4 h-4 text-rose-400" />
                     <span>Log Out</span>
                   </button>
                 </div>
@@ -182,31 +182,31 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Settings Modal (Standard App Modal without Left Sidebar) */}
       {isSettingsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden text-slate-900 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 bg-[#03050a]/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#0d121f] rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden text-slate-100 flex flex-col max-h-[90vh]">
             {/* Modal Header & Close */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
-              <h3 className="text-base font-bold text-teal-950">
+            <div className="flex items-center justify-between px-5 py-4 shrink-0 bg-[#0f172a]">
+              <h3 className="text-base font-bold text-white">
                 Settings
               </h3>
               <button
                 onClick={() => setIsSettingsModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Scrollable Modal Content */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 bg-[#0d121f]">
               {/* Top Tab Bar */}
-              <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl text-2xs sm:text-xs font-medium border border-slate-200/80">
+              <div className="grid grid-cols-3 gap-1 bg-[#0f172a] p-1 rounded-xl text-2xs sm:text-xs font-medium">
                 <button
                   onClick={() => setActiveTab('profile')}
                   className={`py-2 px-1 sm:px-2.5 rounded-lg text-center transition-colors cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 ${
                     activeTab === 'profile'
-                      ? 'bg-teal-900 text-white font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-500/20'
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <User className="w-3.5 h-3.5 shrink-0" />
@@ -218,8 +218,8 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => setActiveTab('preferences')}
                   className={`py-2 px-1 sm:px-2.5 rounded-lg text-center transition-colors cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 ${
                     activeTab === 'preferences'
-                      ? 'bg-teal-900 text-white font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-500/20'
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Globe className="w-3.5 h-3.5 shrink-0" />
@@ -230,8 +230,8 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => setActiveTab('security')}
                   className={`py-2 px-1 sm:px-2.5 rounded-lg text-center transition-colors cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 ${
                     activeTab === 'security'
-                      ? 'bg-teal-900 text-white font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-500/20'
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Lock className="w-3.5 h-3.5 shrink-0" />
@@ -246,26 +246,26 @@ export const Header: React.FC<HeaderProps> = ({
                   {/* Names Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-700 block">
+                      <label className="text-xs font-medium text-slate-300 block">
                         First Name
                       </label>
                       <input
                         type="text"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-teal-900 focus:bg-white transition-colors"
+                        className="w-full bg-[#0f172a] rounded-lg px-3 py-2 text-slate-100 font-medium focus:outline-none focus:bg-[#0f172a] transition-colors"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-700 block">
+                      <label className="text-xs font-medium text-slate-300 block">
                         Last Name
                       </label>
                       <input
                         type="text"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-teal-900 focus:bg-white transition-colors"
+                        className="w-full bg-[#0f172a] rounded-lg px-3 py-2 text-slate-100 font-medium focus:outline-none focus:bg-[#0f172a] transition-colors"
                       />
                     </div>
                   </div>
@@ -273,47 +273,47 @@ export const Header: React.FC<HeaderProps> = ({
                   {/* Email & Gender Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-700 block">
+                      <label className="text-xs font-medium text-slate-300 block">
                         Email Address
                       </label>
                       <input
                         type="email"
                         value={userEmail}
                         onChange={(e) => setUserEmail(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-teal-900 focus:bg-white transition-colors"
+                        className="w-full bg-[#0f172a] rounded-lg px-3 py-2 text-slate-100 font-medium focus:outline-none focus:bg-[#0f172a] transition-colors"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-700 block">
+                      <label className="text-xs font-medium text-slate-300 block">
                         Gender
                       </label>
                       <select
                         value={gender}
                         onChange={(e) => setGender(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-teal-900 focus:bg-white transition-colors cursor-pointer"
+                        className="w-full bg-[#0f172a] rounded-lg px-3 py-2 text-slate-100 font-medium focus:outline-none focus:bg-[#0f172a] transition-colors cursor-pointer"
                       >
-                        <option value="male" className="bg-white text-slate-900">Male</option>
-                        <option value="female" className="bg-white text-slate-900">Female</option>
-                        <option value="non_binary" className="bg-white text-slate-900">Non-binary</option>
-                        <option value="prefer_not_to_say" className="bg-white text-slate-900">Prefer not to say</option>
+                        <option value="male" className="bg-[#131a2b] text-slate-100">Male</option>
+                        <option value="female" className="bg-[#131a2b] text-slate-100">Female</option>
+                        <option value="non_binary" className="bg-[#131a2b] text-slate-100">Non-binary</option>
+                        <option value="prefer_not_to_say" className="bg-[#131a2b] text-slate-100">Prefer not to say</option>
                       </select>
                     </div>
                   </div>
 
                   {/* Phone Number Full Width Row */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700 block">
+                    <label className="text-xs font-medium text-slate-300 block">
                       Phone Number
                     </label>
-                    <div className="flex rounded-lg border border-slate-200 bg-slate-50 focus-within:border-teal-900 transition-colors overflow-hidden">
+                    <div className="flex rounded-lg bg-[#0f172a] transition-colors overflow-hidden">
                       <select
                         value={countryCode}
                         onChange={(e) => setCountryCode(e.target.value)}
-                        className="bg-slate-100 text-slate-900 text-xs px-2.5 py-2 border-r border-slate-200 focus:outline-none cursor-pointer font-medium max-w-[120px] sm:max-w-none truncate"
+                        className="bg-[#131a2b] text-slate-100 text-xs px-2.5 py-2 focus:outline-none cursor-pointer font-medium max-w-[120px] sm:max-w-none truncate"
                       >
                         {COUNTRY_PHONE_CODES.map((item) => (
-                          <option key={item.code} value={item.code} className="bg-white text-slate-900">
+                          <option key={item.code} value={item.code} className="bg-[#131a2b] text-slate-100">
                             {item.label}
                           </option>
                         ))}
@@ -329,7 +329,7 @@ export const Header: React.FC<HeaderProps> = ({
                           setPhoneDigits(val);
                         }}
                         placeholder="1712345678"
-                        className="w-full bg-transparent px-3 py-2 text-slate-900 font-medium focus:outline-none text-xs"
+                        className="w-full bg-transparent px-3 py-2 text-slate-100 font-medium focus:outline-none text-xs"
                       />
                     </div>
                   </div>
@@ -341,24 +341,24 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="space-y-4 text-xs pt-1">
                   {/* Location */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700 flex items-center space-x-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                    <label className="text-xs font-medium text-slate-300 flex items-center space-x-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
                       <span>Current Location</span>
                     </label>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3 gap-2">
-                      <span className="text-slate-900 font-semibold">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#0f172a]/40 rounded-xl p-3 gap-2">
+                      <span className="text-slate-100 font-semibold">
                         {city ? `${city}, ${currentCountry}` : currentCountry}
                       </span>
                       <button
                         type="button"
                         onClick={onRefreshLocation}
                         disabled={isDetectingLocation}
-                        className="flex items-center justify-center space-x-1.5 bg-teal-900 hover:bg-teal-950 text-white px-3 py-2 rounded-lg text-2xs transition-colors cursor-pointer disabled:opacity-50 font-medium shadow-2xs shrink-0"
+                        className="flex items-center justify-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-2xs transition-colors cursor-pointer disabled:opacity-50 font-medium shrink-0 shadow-[0_0_10px_rgba(37,99,235,0.2)]"
                       >
                         {isDetectingLocation ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-200" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
                         ) : (
-                          <Locate className="w-3.5 h-3.5 text-teal-200" />
+                          <Locate className="w-3.5 h-3.5 text-white" />
                         )}
                         <span>Detect GPS</span>
                       </button>
@@ -367,8 +367,8 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* Currency */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700 flex items-center space-x-1.5">
-                      <Globe className="w-3.5 h-3.5 text-slate-500" />
+                    <label className="text-xs font-medium text-slate-300 flex items-center space-x-1.5">
+                      <Globe className="w-3.5 h-3.5 text-slate-400" />
                       <span>Default Currency</span>
                     </label>
                     <select
@@ -379,10 +379,10 @@ export const Header: React.FC<HeaderProps> = ({
                           onSelectCurrency(found);
                         }
                       }}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-teal-900 transition-colors cursor-pointer font-medium"
+                      className="w-full bg-[#0f172a] rounded-xl px-3 py-2 text-slate-100 focus:outline-none transition-colors cursor-pointer font-medium"
                     >
                       {COMMON_CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code} className="bg-white text-slate-900">
+                        <option key={c.code} value={c.code} className="bg-[#131a2b] text-slate-100">
                           {c.code} ({c.symbol}) - {c.name}
                         </option>
                       ))}
@@ -395,39 +395,39 @@ export const Header: React.FC<HeaderProps> = ({
               {activeTab === 'security' && (
                 <form onSubmit={handleSavePassword} className="space-y-3.5 text-xs pt-1">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700 block">
+                    <label className="text-xs font-medium text-slate-300 block">
                       Current Password
                     </label>
                     <input
                       type="password"
                       value={currentPass}
                       onChange={(e) => setCurrentPass(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-teal-900 font-medium"
+                      className="w-full bg-[#0f172a] rounded-lg px-3 py-2 text-slate-100 focus:outline-none font-medium"
                       placeholder="Enter current password"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700 block">
+                    <label className="text-xs font-medium text-slate-300 block">
                       New Password
                     </label>
                     <input
                       type="password"
                       value={newPass}
                       onChange={(e) => setNewPass(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-teal-900 font-medium"
+                      className="w-full bg-[#0f172a] rounded-lg px-3 py-2 text-slate-100 focus:outline-none font-medium"
                       placeholder="Enter new password"
                     />
                   </div>
 
                   {passMessage && (
-                    <div className="text-2xs text-emerald-600 font-semibold">{passMessage}</div>
+                    <div className="text-2xs text-emerald-400 font-semibold">{passMessage}</div>
                   )}
 
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="bg-teal-900 hover:bg-teal-950 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer shadow-2xs"
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.25)]"
                     >
                       Update Password
                     </button>
@@ -437,20 +437,20 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between text-2xs text-slate-500 bg-slate-50/60 shrink-0">
+            <div className="px-5 py-3.5 flex items-center justify-between text-2xs text-slate-400 bg-[#0f172a] shrink-0">
               <span>Lifestyle OS v1.0.4</span>
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
                   onClick={() => setIsSettingsModalOpen(false)}
-                  className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer shadow-2xs"
+                  className="bg-[#0d121f] hover:bg-slate-800 text-slate-300 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer shadow-2xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsSettingsModalOpen(false)}
-                  className="bg-teal-900 hover:bg-teal-950 text-white px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.25)]"
                 >
                   Save
                 </button>

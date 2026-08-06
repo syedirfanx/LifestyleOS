@@ -40,25 +40,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-8 pb-16">
       {/* Grand Total Hero Summary */}
-      <div className="bg-teal-950 border border-teal-900 rounded-2xl p-6 md:p-8 relative overflow-hidden shadow-sm text-white">
+      <div className="bg-[#0d121f] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl -ml-16 -mb-16 pointer-events-none"></div>
+
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-teal-200">
-              Total Estimate
+            <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">
+              Total estimated cost
             </span>
-            <div className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-              {totalDreamCost.toLocaleString()} <span className="text-lg font-normal text-teal-200">{currency.code}</span>
+            <div className="text-3xl md:text-4xl font-black text-white tracking-tight">
+              {totalDreamCost.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-8 border-t md:border-t-0 md:border-l border-teal-800/80 pt-4 md:pt-0 md:pl-8 text-teal-100">
+          <div className="flex items-center space-x-8 pt-4 md:pt-0 md:pl-8 text-blue-100">
             <div>
-              <div className="text-2xl font-bold text-white">{setups.length}</div>
-              <div className="text-xs font-medium uppercase tracking-wider text-teal-200">Setups</div>
+              <div className="text-2xl font-black text-white">{setups.length}</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Setups</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-white">{items.length}</div>
-              <div className="text-xs font-medium uppercase tracking-wider text-teal-200">Total Items</div>
+              <div className="text-2xl font-black text-white">{items.length}</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Items</div>
             </div>
           </div>
         </div>
@@ -67,22 +70,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Setups Grid */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-teal-950">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Your Life Area Setups
           </h2>
         </div>
 
         {setups.length === 0 ? (
-          <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center space-y-4 shadow-2xs">
-            <div className="w-12 h-12 rounded-full bg-slate-100 text-teal-950 flex items-center justify-center mx-auto">
-              <Box className="w-6 h-6 text-teal-900" />
+          <div className="bg-[#0d121f] rounded-2xl p-12 text-center space-y-4 shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-[#0f172a] text-blue-400 flex items-center justify-center mx-auto">
+              <Box className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-semibold text-slate-900">No Setups Created</h3>
+              <h3 className="text-sm font-bold text-slate-200">No Setups Created</h3>
             </div>
             <button
               onClick={onNewSetup}
-              className="bg-teal-900 hover:bg-teal-950 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.25)]"
             >
               Create Your First Setup
             </button>
@@ -101,24 +104,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     window.scrollTo({ top: 0, behavior: 'instant' });
                     onSelectSetup(setup.id);
                   }}
-                  className="group bg-white border border-slate-200 rounded-2xl p-5 hover:border-teal-900 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 shadow-2xs relative text-slate-900"
+                  className="group bg-[#0d121f] rounded-2xl p-6 hover:bg-[#131a2b]/80 hover:shadow-[0_0_25px_rgba(37,99,235,0.12)] transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-5 shadow-sm relative text-slate-100"
                 >
                   <div className="space-y-4">
                     {/* Primary Area & SubCategory ABOVE Setup Name */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center space-x-1.5 text-xs font-semibold text-teal-900">
+                        <div className="flex items-center space-x-1.5 text-xs font-semibold uppercase tracking-wide text-blue-400">
                           <span className="truncate">{setup.category}</span>
-                          {setup.subCategory && (
-                            <>
-                              <span className="text-slate-300">•</span>
-                              <span className="text-slate-600 font-medium truncate">{setup.subCategory}</span>
-                            </>
-                          )}
                         </div>
-                        <h3 className="text-lg font-bold text-slate-900 group-hover:text-teal-950 transition-colors line-clamp-1">
+                        <h3 className="text-base font-bold text-slate-100 group-hover:text-blue-400 transition-colors line-clamp-1">
                           {setup.title}
                         </h3>
+                        {setup.description && (
+                          <p className="text-xs text-slate-400 line-clamp-2 mt-1 font-normal leading-relaxed">
+                            {setup.description}
+                          </p>
+                        )}
                       </div>
 
                       <button
@@ -126,7 +128,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           e.stopPropagation();
                           onDeleteSetup(setup.id);
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
                         title="Delete Setup"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -134,34 +136,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
 
                     {/* Cost & Items Badge */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+                    <div className="bg-slate-950/60 rounded-xl p-3 flex items-center justify-between">
                       <div>
-                        <div className="text-2xs text-slate-500 font-medium">Estimated Cost</div>
-                        <div className="text-base font-bold text-teal-950">
-                          {setupCost.toLocaleString()} <span className="text-xs text-slate-500 font-normal">{currency.code}</span>
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">Estimated Cost</div>
+                        <div className="text-base font-extrabold text-blue-400 mt-0.5">
+                          {setupCost.toLocaleString()} <span className="text-xs text-slate-500 font-semibold">{currency.code}</span>
                         </div>
                       </div>
-                      <div className="text-2xs font-semibold text-teal-950 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                      <div className="text-2xs font-semibold text-blue-400 bg-blue-950/40 px-2.5 py-1 rounded-lg">
                         {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
                       </div>
                     </div>
 
                     {/* Item Preview List */}
                     {topItems.length > 0 && (
-                      <div className="space-y-1.5 px-0.5">
+                      <div className="space-y-2 px-0.5">
                         {topItems.map((item) => (
                           <div
                             key={item.id}
-                            className="text-2xs text-slate-600 flex items-center justify-between"
+                            className="text-xs flex items-center justify-between"
                           >
-                            <span className="truncate pr-2 text-slate-700 font-medium">{item.name}</span>
-                            <span className="text-slate-900 font-semibold shrink-0">
+                            <span className="truncate pr-2 text-slate-400 font-medium">{item.name}</span>
+                            <span className="text-slate-200 font-bold shrink-0">
                               {(item.estimatedPrice * item.quantity).toLocaleString()} {currency.symbol}
                             </span>
                           </div>
                         ))}
                         {itemCount > 3 && (
-                          <div className="text-2xs text-slate-400 pt-0.5">
+                          <div className="text-2xs text-slate-500 font-semibold uppercase tracking-wide pt-0.5">
                             +{itemCount - 3} more
                           </div>
                         )}
@@ -170,9 +172,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
 
                   {/* Card Footer Action */}
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 group-hover:text-teal-950 transition-colors">
-                    <span className="font-semibold text-2xs">View Setup Details</span>
-                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-slate-400 group-hover:text-teal-950" />
+                  <div className="pt-3 flex items-center justify-between text-xs text-slate-400 group-hover:text-blue-400 transition-colors">
+                    <span className="font-semibold text-2xs uppercase tracking-wide text-slate-500 group-hover:text-blue-400">View Details</span>
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-slate-500 group-hover:text-blue-400" />
                   </div>
                 </div>
               );
@@ -181,13 +183,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* Add New Setup Thumbnail Card */}
             <div
               onClick={onNewSetup}
-              className="group bg-slate-50/80 border border-dashed border-teal-900/30 rounded-2xl p-6 hover:border-teal-900 hover:bg-white transition-all cursor-pointer flex flex-col items-center justify-center text-center min-h-[220px] space-y-3"
+              className="group bg-[#0d121f]/40 rounded-2xl p-6 hover:bg-[#0d121f] hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col items-center justify-center text-center min-h-[220px] space-y-3"
             >
-              <div className="w-10 h-10 rounded-full bg-teal-900/10 border border-teal-900/20 flex items-center justify-center text-teal-950 group-hover:bg-teal-900 group-hover:text-white transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-[#0f172a] flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
                 <Plus className="w-5 h-5" />
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-bold text-teal-950 transition-colors">
+                <div className="text-xs font-bold text-slate-300 transition-colors">
                   Add New Setup
                 </div>
                 <div className="text-2xs text-slate-500 max-w-[200px]">

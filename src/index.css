@@ -1,10 +1,10 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #0f172a;
+    color: #f1f5f9;
+    background-color: #0f172a;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -14,4 +14,32 @@
   font-size: 0.72rem;
   line-height: 1rem;
 }
+
+.font-logo {
+  font-family: 'Exo', sans-serif;
+}
+
+@keyframes blink-slow {
+  0%, 100% {
+    opacity: 0.15;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.1);
+  }
+}
+
+.animate-blink-slow-1 {
+  animation: blink-slow 7s ease-in-out infinite;
+}
+
+.animate-blink-slow-2 {
+  animation: blink-slow 10s ease-in-out infinite 2.5s;
+}
+
+.animate-blink-slow-3 {
+  animation: blink-slow 13s ease-in-out infinite 5s;
+}
+
 
