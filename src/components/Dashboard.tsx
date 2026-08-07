@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { Plus, Trash2, ChevronRight, Box } from 'lucide-react';
 import { Setup, SetupItem, Currency } from '../types';
 import { AreaIcon } from './AreaIcon';
@@ -19,6 +20,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
+
   setups,
   items,
   currency,
@@ -27,6 +29,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onDeleteSetup,
   onNavigateToTracker,
 }) => {
+  const [setupToDelete, setSetupToDelete] = useState<string | null>(null);
+
   // Calculate total dream cost across all setups
   
   
@@ -186,7 +190,7 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
             </div>
             <button
               onClick={onNewSetup}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.25)]"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20"
             >
               Create Your First Setup
             </button>
@@ -227,7 +231,7 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteSetup(setup.id);
+                          setSetupToDelete(setup.id);
                         }}
                         className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
                         title="Delete Setup"
@@ -301,6 +305,13 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
           </div>
         )}
       </div>
+      <ConfirmDeleteModal
+        isOpen={setupToDelete !== null}
+        title="Delete Setup"
+        message="Are you sure you want to delete this setup? This action cannot be undone."
+        onConfirm={() => { if (setupToDelete) onDeleteSetup(setupToDelete); }}
+        onCancel={() => setSetupToDelete(null)}
+      />
     </div>
   );
 };

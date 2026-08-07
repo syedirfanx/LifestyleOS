@@ -1,0 +1,53 @@
+{
+  "collections": [
+    {
+      "name": "setups",
+      "description": "User's setups.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "The user ID of the owner" },
+        { "name": "title", "type": "string" },
+        { "name": "category", "type": "string" },
+        { "name": "subCategory", "type": "string" },
+        { "name": "description", "type": "string" },
+        { "name": "icon", "type": "string" },
+        { "name": "createdAt", "type": "string" }
+      ],
+      "access": "User owns the document (userId == request.auth.uid)",
+      "indexes": []
+    },
+    {
+      "name": "items",
+      "description": "Items in a setup.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "The user ID of the owner" },
+        { "name": "setupId", "type": "string" },
+        { "name": "name", "type": "string" },
+        { "name": "brand", "type": "string" },
+        { "name": "model", "type": "string" },
+        { "name": "quantity", "type": "number" },
+        { "name": "estimatedPrice", "type": "number" },
+        { "name": "isAiEstimated", "type": "boolean" },
+        { "name": "priceRangeMin", "type": "number" },
+        { "name": "priceRangeMax", "type": "number" },
+        { "name": "confidence", "type": "string" },
+        { "name": "notes", "type": "string" },
+        { "name": "category", "type": "string" },
+        { "name": "status", "type": "string" },
+        { "name": "paymentMethod", "type": "string" },
+        { "name": "paymentDetails", "type": "map" }
+      ],
+      "access": "User owns the document (userId == request.auth.uid)",
+      "indexes": [
+        {
+          "fields": [
+            { "name": "setupId", "direction": "ASCENDING" }
+          ]
+        }
+      ]
+    }
+  ],
+  "firebaseConfig": {
+    "auth": true,
+    "firestore": true
+  }
+}

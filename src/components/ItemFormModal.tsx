@@ -515,7 +515,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
           <div className="pt-2 pb-1">
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_25px_rgba(37,99,235,0.3)]"
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.4)] border border-blue-400/20"
             >
               {isEditMode ? 'Save Changes' : 'Add Item'}
             </button>

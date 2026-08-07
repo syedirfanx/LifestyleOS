@@ -1,8 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Settings, MapPin, Locate, Loader2, Globe, X, Lock, LogOut, ChevronDown, KeyRound, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
+import { auth } from '../firebase';
+import { signOut, RecaptchaVerifier, linkWithPhoneNumber } from 'firebase/auth';
 import { Currency } from '../types';
 import { COMMON_CURRENCIES } from '../utils/locationCurrency';
+
+declare global {
+  interface Window {
+    recaptchaVerifier: any;
+  }
+}
 
 const COUNTRY_PHONE_CODES = [
   { code: '+880', label: 'BD (+880)' },
@@ -38,16 +46,21 @@ export const Header: React.FC<HeaderProps> = ({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'security'>('profile');
 
-  const [firstName, setFirstName] = useState('Syed');
-  const [lastName, setLastName] = useState('Irfaan');
-  const [userEmail, setUserEmail] = useState('syedirfaanx@gmail.com');
+  const [firstName, setFirstName] = useState(auth.currentUser?.displayName?.split(' ')[0] || 'User');
+  const [lastName, setLastName] = useState(auth.currentUser?.displayName?.split(' ').slice(1).join(' ') || '');
+  const [userEmail, setUserEmail] = useState(auth.currentUser?.email || '');
+  const userPhoto = auth.currentUser?.photoURL || null;
   const [countryCode, setCountryCode] = useState('+880');
-  const [phoneDigits, setPhoneDigits] = useState('1712345678');
-  const [gender, setGender] = useState('male');
+  const [phoneDigits, setPhoneDigits] = useState('');
+  const [gender, setGender] = useState('');
 
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [passMessage, setPassMessage] = useState('');
+  const [phoneVerifying, setPhoneVerifying] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -79,9 +92,56 @@ export const Header: React.FC<HeaderProps> = ({
     }, 2000);
   };
 
-  const handleLogout = () => {
+  const handleVerifyPhone = async () => {
+    if (!phoneDigits) return;
+    setPhoneVerifying(true);
+    try {
+      const phoneNumber = `${countryCode}${phoneDigits}`;
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible'
+        });
+      }
+      
+      const appVerifier = window.recaptchaVerifier;
+      if (auth.currentUser) {
+        const result = await linkWithPhoneNumber(auth.currentUser, phoneNumber, appVerifier);
+        setConfirmationResult(result);
+        setOtpSent(true);
+      }
+    } catch (e: any) {
+      console.error(e);
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      }
+      alert('Error: ' + e.message);
+    } finally {
+      setPhoneVerifying(false);
+    }
+  };
+
+  const handleConfirmOtp = async () => {
+    if (!otpCode || !confirmationResult) return;
+    try {
+      await confirmationResult.confirm(otpCode);
+      setOtpSent(false);
+      setConfirmationResult(null);
+      alert('Phone number verified and linked!');
+    } catch (e: any) {
+      console.error(e);
+      alert('Invalid OTP: ' + e.message);
+    }
+  };
+
+  const handleLogout = async () => {
     setIsDropdownOpen(false);
-    alert('Logged out successfully');
+    try {
+      await signOut(auth);
+      localStorage.removeItem('lifestyle_os_auth');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -108,13 +168,20 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center space-x-2 sm:space-x-3 text-slate-300 hover:text-slate-100 transition-colors cursor-pointer"
+              className="flex items-center gap-2.5 sm:gap-3 p-1.5 sm:pr-4 rounded-full bg-slate-900/50 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-900 hover:shadow-[0_0_15px_rgba(37,99,235,0.15)] transition-all duration-300 cursor-pointer"
             >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm sm:text-base shrink-0 shadow-xs">
-                {firstName.charAt(0)}
+              {userPhoto ? (
+                <img src={userPhoto} referrerPolicy="no-referrer" alt="Profile" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full shrink-0 shadow-inner object-cover" />
+              ) : (
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm sm:text-base shrink-0 shadow-inner">
+                  {firstName.charAt(0)}
+                </div>
+              )}
+              <div className="hidden sm:flex flex-col items-start justify-center pr-1">
+                <span className="text-xs font-bold text-slate-200 leading-tight">{firstName}</span>
+                <span className="text-[9px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 uppercase tracking-widest leading-none mt-0.5">Pro Member</span>
               </div>
-              <span className="text-sm font-bold hidden sm:inline">{firstName}</span>
-              <ChevronDown className="w-4 h-4 text-slate-400 hidden sm:block" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
             </button>
 
             {/* Regular Application User Dropdown */}
@@ -317,6 +384,7 @@ export const Header: React.FC<HeaderProps> = ({
                             onChange={(e) => setGender(e.target.value)}
                             className="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm font-semibold focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all group-hover:border-slate-700 appearance-none cursor-pointer"
                           >
+                            <option value="" disabled className="bg-[#131a2b] text-slate-100 hidden">Select your gender</option>
                             <option value="male" className="bg-[#131a2b] text-slate-100">Male</option>
                             <option value="female" className="bg-[#131a2b] text-slate-100">Female</option>
                             <option value="non_binary" className="bg-[#131a2b] text-slate-100">Non-binary</option>
@@ -355,15 +423,44 @@ export const Header: React.FC<HeaderProps> = ({
                               }
                               setPhoneDigits(val);
                             }}
-                            placeholder="1712345678"
+                            placeholder=""
                             className="w-full bg-transparent px-3 py-2.5 text-slate-200 font-semibold focus:outline-none text-sm min-w-0"
                           />
                         </div>
+                        {phoneDigits && !otpSent && (
+                          <div className="mt-2 text-right">
+                             <button
+                               onClick={handleVerifyPhone}
+                               disabled={phoneVerifying}
+                               className="text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg font-bold transition-all"
+                             >
+                               {phoneVerifying ? 'Verifying...' : 'Verify Number'}
+                             </button>
+                          </div>
+                        )}
+                        {otpSent && (
+                          <div className="mt-2 flex space-x-2">
+                             <input 
+                               type="text" 
+                               value={otpCode}
+                               onChange={e => setOtpCode(e.target.value)}
+                               placeholder="OTP Code"
+                               className="flex-1 bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-500/50"
+                             />
+                             <button
+                               onClick={handleConfirmOtp}
+                               className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg font-bold transition-all"
+                             >
+                               Confirm
+                             </button>
+                          </div>
+                        )}
+                        <div id="recaptcha-container"></div>
                       </div>
                     </div>
                   </div>
                   <div className="pt-2 flex justify-end">
-                    <button className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.2)]">
+                    <button className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20">
                       Save Changes
                     </button>
                   </div>
@@ -387,7 +484,7 @@ export const Header: React.FC<HeaderProps> = ({
                         type="button"
                         onClick={onRefreshLocation}
                         disabled={isDetectingLocation}
-                        className="flex items-center justify-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-2xs transition-colors cursor-pointer disabled:opacity-50 font-medium shrink-0 shadow-[0_0_10px_rgba(37,99,235,0.2)]"
+                        className="flex items-center justify-center space-x-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-3 py-2 rounded-lg text-2xs transition-all duration-300 cursor-pointer disabled:opacity-50 font-bold shrink-0 shadow-[0_0_15px_rgba(37,99,235,0.3)] border border-blue-400/20"
                       >
                         {isDetectingLocation ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
@@ -484,7 +581,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsSettingsModalOpen(false)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.25)]"
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20"
                 >
                   Save
                 </button>

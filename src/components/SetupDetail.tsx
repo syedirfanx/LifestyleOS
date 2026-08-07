@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { ArrowLeft, Plus, Sparkles, Trash2, Edit2, Check, X, Info } from 'lucide-react';
 import { Setup, SetupItem, Currency, ConfidenceLevel, ItemStatus, PaymentMethod, PaymentDetails } from '../types';
 import { ItemFormModal } from "./ItemFormModal";
@@ -49,6 +50,7 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
 
   // Edit item state
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBrand, setEditBrand] = useState('');
@@ -236,7 +238,7 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
             window.scrollTo({ top: 0, behavior: 'instant' });
             onBack();
           }}
-          className="inline-flex items-center space-x-2 px-3.5 py-2 bg-[#0e1422] rounded-xl text-slate-300 hover:text-white hover:bg-slate-850 transition-all text-xs font-bold cursor-pointer"
+          className="inline-flex items-center space-x-2 px-3.5 py-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all duration-300 text-xs font-bold cursor-pointer shadow-sm hover:shadow-[0_0_15px_rgba(0,0,0,0.5)]"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Setups</span>
@@ -245,7 +247,7 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
         <button
           onClick={() => onSuggestAiSetupItems(setup.title)}
           disabled={isSuggestingItems}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_15px_rgba(37,99,235,0.25)] disabled:opacity-50"
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/30 disabled:opacity-50"
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-300" />
           <span>{isSuggestingItems ? 'Generating suggestions...' : 'AI Suggest Items'}</span>
@@ -289,7 +291,7 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
           </h3>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_15px_rgba(37,99,235,0.25)]"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all duration-300 cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Item</span>
@@ -397,7 +399,7 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => onDeleteItem(item.id)}
+                      onClick={() => setItemToDelete(item.id)}
                       className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-950/20 rounded-lg transition-colors cursor-pointer"
                       title="Delete Item"
                     >
@@ -460,6 +462,13 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
         country={country}
       />
 
+      <ConfirmDeleteModal
+        isOpen={itemToDelete !== null}
+        title="Delete Item"
+        message="Are you sure you want to delete this item?"
+        onConfirm={() => { if (itemToDelete) onDeleteItem(itemToDelete); }}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 };
