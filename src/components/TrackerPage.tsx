@@ -46,21 +46,21 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ items, setups, currenc
             window.scrollTo({ top: 0, behavior: 'instant' });
             onBack();
           }}
-          className="inline-flex items-center space-x-2 px-3.5 py-2 bg-[#0e1422] rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-xs font-bold cursor-pointer"
+          className="inline-flex items-center space-x-2 px-3.5 py-2 bg-[#0e1422] rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-xs font-bold cursor-pointer min-h-[38px]"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Dashboard</span>
         </button>
       </div>
 
-      <div className="bg-[#0d121f] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white">
+      <div className="bg-[#0d121f] rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 relative overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
         
-        <div className="relative z-10 flex flex-col gap-2">
-          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+        <div className="relative z-10 flex flex-col gap-1.5 sm:gap-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
             {title}
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-xs sm:text-sm text-slate-400">
             {filteredItems.length} active {title.toLowerCase()}
           </p>
         </div>

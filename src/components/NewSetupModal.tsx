@@ -101,9 +101,7 @@ export const NewSetupModal: React.FC<NewSetupModalProps> = ({
         description: description.trim(),
         icon: currentArea.icon,
       },
-      itemsToPreload.length > 0
-        ? itemsToPreload.map(item => ({ ...item, notes: undefined }))
-        : undefined
+      itemsToPreload.length > 0 ? itemsToPreload : undefined
     );
 
     // Reset and close
@@ -113,19 +111,19 @@ export const NewSetupModal: React.FC<NewSetupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#03050a]/90 backdrop-blur-sm">
-      <div className="bg-[#0d121f] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-slate-100 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-[#03050a]/90 backdrop-blur-sm">
+      <div className="bg-[#0d121f] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-slate-100 flex flex-col max-h-[92vh] sm:max-h-[90vh]">
         {/* Header */}
-        <div className="p-4 sm:p-5 flex items-center justify-between bg-[#0f172a] shrink-0">
+        <div className="p-4 sm:p-5 flex items-center justify-between bg-[#0f172a] shrink-0 border-b border-slate-800/50">
           <div>
-            <h2 className="text-lg font-bold text-slate-100 tracking-tight">
+            <h2 className="text-base sm:text-lg font-bold text-slate-100 tracking-tight">
               Create New Setup
             </h2>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -241,7 +239,7 @@ export const NewSetupModal: React.FC<NewSetupModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Makeup & Vanity Corner, Tech Workstation"
-              className="w-full bg-[#0f172a] rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-[#0f172a] transition-colors"
+              className="w-full bg-[#0f172a] rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:bg-[#0f172a] transition-colors border border-slate-800/50 min-h-[42px]"
             />
           </div>
 
@@ -253,22 +251,22 @@ export const NewSetupModal: React.FC<NewSetupModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief notes about your vision..."
-              className="w-full bg-[#0f172a] rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:bg-[#0f172a] transition-colors"
+              className="w-full bg-[#0f172a] rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:bg-[#0f172a] transition-colors border border-slate-800/50"
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-3 flex items-center justify-end space-x-2">
+          <div className="pt-3 flex flex-col-reverse sm:flex-row items-center sm:justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer font-medium"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer font-medium text-center min-h-[42px]"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20 flex items-center space-x-1.5"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20 flex items-center justify-center space-x-1.5 min-h-[42px]"
             >
               <Check className="w-3.5 h-3.5" />
               <span>Create Setup</span>

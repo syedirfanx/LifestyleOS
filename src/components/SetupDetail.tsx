@@ -232,13 +232,13 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
   return (
     <div className="space-y-6 pb-20 text-slate-100 animate-in fade-in duration-300">
       {/* Top Header Navigation */}
-      <div className="flex items-center justify-between pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2">
         <button
           onClick={() => {
             window.scrollTo({ top: 0, behavior: 'instant' });
             onBack();
           }}
-          className="inline-flex items-center space-x-2 px-3.5 py-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all duration-300 text-xs font-bold cursor-pointer shadow-sm hover:shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+          className="inline-flex items-center space-x-2 px-3.5 py-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all duration-300 text-xs font-bold cursor-pointer shadow-sm hover:shadow-[0_0_15px_rgba(0,0,0,0.5)] min-h-[38px]"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Setups</span>
@@ -247,37 +247,37 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
         <button
           onClick={() => onSuggestAiSetupItems(setup.title)}
           disabled={isSuggestingItems}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/30 disabled:opacity-50"
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/30 disabled:opacity-50 min-h-[38px]"
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          <span>{isSuggestingItems ? 'Generating suggestions...' : 'AI Suggest Items'}</span>
+          <span>{isSuggestingItems ? 'Generating...' : 'AI Suggest Items'}</span>
         </button>
       </div>
 
       {/* Combined Setup Banner & Items Table */}
-      <div className="bg-[#0d121f] rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white flex flex-col">
+      <div className="bg-[#0d121f] rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white flex flex-col">
         {/* Setup Title & Header Banner */}
-        <div className="p-6 md:p-8 relative">
+        <div className="p-4 sm:p-6 md:p-8 relative">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl -ml-16 -mb-16 pointer-events-none"></div>
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 w-full">
             <div className="space-y-1.5">
               <div className="text-2xs font-semibold uppercase tracking-wide text-blue-400 bg-blue-950/40 px-2.5 py-1 rounded inline-block">
                 {setup.category}
               </div>
-              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight mt-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight mt-1 break-words">
                 {setup.title}
               </h1>
               {setup.description && (
-                <p className="text-sm text-slate-300 max-w-xl leading-relaxed">{setup.description}</p>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">{setup.description}</p>
               )}
             </div>
 
-            <div className="text-left md:text-right shrink-0 space-y-1">
+            <div className="text-left md:text-right shrink-0 space-y-0.5 sm:space-y-1 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/40">
               <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">{isRecurring ? "Monthly Cost" : "Total Cost"}</span>
-              <div className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                {setupTotalCost.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+                {setupTotalCost.toLocaleString()} <span className="text-xs sm:text-sm font-semibold text-slate-400">{currency.code}</span>
               </div>
             </div>
           </div>
@@ -285,13 +285,13 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
 
         {/* Setup Items Table & Total Breakdown */}
         <div className="bg-[#0c111c] border-t border-slate-800/50">
-          <div className="p-5 flex items-center justify-between bg-[#0e1422]">
+          <div className="p-4 sm:p-5 flex items-center justify-between bg-[#0e1422]">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Setup Items ({setupItems.length})
           </h3>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all duration-300 cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold px-3.5 sm:px-4 py-2 rounded-xl text-xs transition-all duration-300 cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20 min-h-[38px]"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Item</span>
@@ -299,7 +299,7 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
         </div>
 
         {setupItems.length === 0 ? (
-          <div className="p-12 text-center text-xs text-slate-500 flex flex-col items-center justify-center space-y-4">
+          <div className="p-8 sm:p-12 text-center text-xs text-slate-500 flex flex-col items-center justify-center space-y-4">
             <div>No items in this setup yet. Add items to start estimating total cost.</div>
             <button
               onClick={() => setIsAddModalOpen(true)}
@@ -310,8 +310,8 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-2 p-2">
-            {/* Header row */}
+          <div className="flex flex-col gap-2 p-2 sm:p-3">
+            {/* Desktop Table Header */}
             <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-slate-950/20">
               <div className="col-span-4">Item</div>
               <div className="col-span-2 text-center">Qty</div>
@@ -327,35 +327,135 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
               return (
                 <div
                   key={item.id}
-                  className="p-5 sm:px-6 sm:py-4 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center text-xs hover:bg-slate-800/40 transition-colors bg-[#0f172a]/30 rounded-xl"
+                  className="p-3.5 sm:px-6 sm:py-4 hover:bg-slate-800/40 transition-colors bg-[#0f172a]/30 rounded-xl"
                 >
-                  {/* Name & Details */}
-                  <div className="sm:col-span-4 space-y-0.5">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-bold text-slate-100 text-sm">{item.name}</span>
-                      {item.isAiEstimated && (
-                        <span className="text-[10px] bg-blue-950/40 text-blue-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
-                          AI Est
-                        </span>
-                      )}
-                    </div>
-                    {(item.brand || item.model) && (
-                      <div className="text-xs text-slate-400 font-medium">
-                        {[item.brand, item.model].filter(Boolean).join(' • ')}
+                  {/* Desktop Layout */}
+                  <div className="hidden sm:grid sm:grid-cols-12 gap-4 items-center text-xs">
+                    {/* Name & Details */}
+                    <div className="col-span-4 space-y-0.5">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-bold text-slate-100 text-sm">{item.name}</span>
+                        {item.isAiEstimated && (
+                          <span className="text-[10px] bg-blue-950/40 text-blue-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                            AI Est
+                          </span>
+                        )}
                       </div>
-                    )}
+                      {(item.brand || item.model) && (
+                        <div className="text-xs text-slate-400 font-medium">
+                          {[item.brand, item.model].filter(Boolean).join(' • ')}
+                        </div>
+                      )}
+                      {item.notes && (
+                        <div className="text-xs text-slate-500 font-normal italic">{item.notes}</div>
+                      )}
+
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide ${
+                            (item.status === 'Purchased' || item.status === 'Active') ? 'bg-emerald-950/40 text-emerald-400' :
+                            item.status === 'Ready to Buy' ? 'bg-amber-950/40 text-amber-400' :
+                            'bg-slate-800 text-slate-400'
+                          }`}>
+                            {item.status || 'Planning'}
+                          </span>
+                        
+                        {item.status === 'Purchased' && item.paymentMethod === 'EMI' && (
+                          <span className="text-[10px] bg-blue-950/40 text-blue-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                            EMI: {item.paymentDetails?.monthlyEMI?.toLocaleString()} {currency.code}/mo
+                          </span>
+                        )}
+                        {item.status === 'Purchased' && item.paymentMethod === 'Loan' && (
+                          <span className="text-[10px] bg-emerald-950/40 text-emerald-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                            Loan: {item.paymentDetails?.monthlyPayment?.toLocaleString()} {currency.code}/mo
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="col-span-2 text-center text-slate-300 font-semibold">
+                      {item.quantity}
+                    </div>
+
+                    {/* Unit Price */}
+                    <div className="col-span-2 text-right text-slate-300 font-semibold">
+                      {item.estimatedPrice.toLocaleString()} <span className="text-xs text-slate-500 font-medium">{currency.code}</span>
+                    </div>
+
+                    {/* Line Total */}
+                    <div className="col-span-2 text-right font-black text-blue-400 text-sm">
+                      {lineTotal.toLocaleString()} <span className="text-xs text-slate-500 font-medium">{currency.code}</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-2 flex items-center justify-end space-x-1">
+                      <button
+                        onClick={() => startEditing(item)}
+                        className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title="Edit Item"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setItemToDelete(item.id)}
+                        className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-950/20 rounded-lg transition-colors cursor-pointer"
+                        title="Delete Item"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mobile Layout */}
+                  <div className="sm:hidden space-y-2.5">
+                    {/* Top Row: Title + Action Buttons */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="flex items-center space-x-1.5 flex-wrap">
+                          <span className="font-bold text-slate-100 text-sm break-words">{item.name}</span>
+                          {item.isAiEstimated && (
+                            <span className="text-[9px] bg-blue-950/40 text-blue-400 px-1 py-0.5 rounded font-bold uppercase tracking-wide">
+                              AI
+                            </span>
+                          )}
+                        </div>
+                        {(item.brand || item.model) && (
+                          <div className="text-xs text-slate-400 font-medium">
+                            {[item.brand, item.model].filter(Boolean).join(' • ')}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-1 shrink-0">
+                        <button
+                          onClick={() => startEditing(item)}
+                          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-400 bg-slate-800/60 rounded-lg transition-colors cursor-pointer"
+                          title="Edit Item"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setItemToDelete(item.id)}
+                          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-400 bg-slate-800/60 rounded-lg transition-colors cursor-pointer"
+                          title="Delete Item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
                     {item.notes && (
-                      <div className="text-xs text-slate-500 font-normal italic">{item.notes}</div>
+                      <div className="text-xs text-slate-500 italic">{item.notes}</div>
                     )}
 
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide ${
                           (item.status === 'Purchased' || item.status === 'Active') ? 'bg-emerald-950/40 text-emerald-400' :
                           item.status === 'Ready to Buy' ? 'bg-amber-950/40 text-amber-400' :
                           'bg-slate-800 text-slate-400'
                         }`}>
-                          {item.status || 'Planning'}
-                        </span>
+                        {item.status || 'Planning'}
+                      </span>
                       
                       {item.status === 'Purchased' && item.paymentMethod === 'EMI' && (
                         <span className="text-[10px] bg-blue-950/40 text-blue-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
@@ -369,54 +469,33 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
                       )}
                     </div>
 
-                  </div>
-
-                  {/* Quantity */}
-                  <div className="sm:col-span-2 sm:text-center text-slate-300 font-semibold">
-                    <span className="sm:hidden text-slate-500 font-semibold uppercase tracking-wide pr-1 text-2xs">Qty:</span>
-                    {item.quantity}
-                  </div>
-
-                  {/* Unit Price */}
-                  <div className="sm:col-span-2 sm:text-right text-slate-300 font-semibold">
-                    <span className="sm:hidden text-slate-500 font-semibold uppercase tracking-wide pr-1 text-2xs">Unit:</span>
-                    {item.estimatedPrice.toLocaleString()} <span className="text-xs text-slate-500 font-medium">{currency.code}</span>
-                  </div>
-
-                  {/* Line Total */}
-                  <div className="sm:col-span-2 sm:text-right font-black text-blue-400 text-sm">
-                    <span className="sm:hidden text-slate-500 font-semibold uppercase tracking-wide pr-1 text-2xs">Total:</span>
-                    {lineTotal.toLocaleString()} <span className="text-xs text-slate-500 font-medium">{currency.code}</span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="sm:col-span-2 flex items-center justify-end space-x-1">
-                    <button
-                      onClick={() => startEditing(item)}
-                      className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                      title="Edit Item"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setItemToDelete(item.id)}
-                      className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-950/20 rounded-lg transition-colors cursor-pointer"
-                      title="Delete Item"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Bottom Stats Row: Qty, Unit, Total */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-800/50 text-xs">
+                      <div className="text-slate-400">
+                        <span className="text-2xs uppercase text-slate-500 font-semibold pr-1">Qty:</span>
+                        <span className="text-slate-200 font-semibold">{item.quantity}</span>
+                      </div>
+                      <div className="text-slate-400">
+                        <span className="text-2xs uppercase text-slate-500 font-semibold pr-1">Unit:</span>
+                        <span className="text-slate-200 font-semibold">{item.estimatedPrice.toLocaleString()} {currency.symbol}</span>
+                      </div>
+                      <div className="font-bold text-blue-400">
+                        <span className="text-2xs uppercase text-slate-500 font-semibold pr-1">Total:</span>
+                        <span>{lineTotal.toLocaleString()} {currency.symbol}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
             })}
 
             {/* Total Calculation Row */}
-            <div className="p-6 bg-slate-950/40 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="p-4 sm:p-6 bg-slate-950/40 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 rounded-xl">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 text-center sm:text-left">
                 Total Estimated Cost for {setup.title}
               </div>
-              <div className="text-xl font-black text-blue-400 tracking-tight">
-                {setupTotalCost.toLocaleString()} <span className="text-sm font-semibold text-slate-500">{currency.code}</span>
+              <div className="text-lg sm:text-xl font-black text-blue-400 tracking-tight">
+                {setupTotalCost.toLocaleString()} <span className="text-xs sm:text-sm font-semibold text-slate-500">{currency.code}</span>
               </div>
             </div>
           </div>

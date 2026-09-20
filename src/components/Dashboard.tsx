@@ -86,13 +86,13 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
       {/* Grand Total Hero Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Dream Worth */}
-        <div className="bg-[#0d121f] rounded-3xl p-6 relative overflow-hidden shadow-sm text-white">
+        <div className="bg-[#0d121f] rounded-2xl sm:rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-sm text-white">
           <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
           <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">Total Dream Worth</span>
-          <div className="text-3xl font-black text-white tracking-tight mt-1">
-            {totalDreamCost.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
+          <div className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
+            {totalDreamCost.toLocaleString()} <span className="text-xs sm:text-sm font-semibold text-slate-400">{currency.code}</span>
           </div>
-          <div className="flex gap-4 mt-4 pt-4 border-t border-slate-800/50">
+          <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-slate-800/50">
             <div>
               <div className="text-xs font-semibold text-slate-400">Purchased Value</div>
               <div className="text-sm font-bold text-slate-200">{purchasedValue.toLocaleString()} {currency.code}</div>
@@ -105,13 +105,13 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
         </div>
 
         {/* Monthly Commitments */}
-        <div className="bg-[#0d121f] rounded-3xl p-6 relative overflow-hidden shadow-sm text-white">
+        <div className="bg-[#0d121f] rounded-2xl sm:rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-sm text-white">
           <div className="absolute top-0 left-0 w-48 h-48 bg-emerald-600/10 rounded-full blur-3xl -ml-16 -mt-16 pointer-events-none"></div>
           <span className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Monthly Commitments</span>
-          <div className="text-3xl font-black text-white tracking-tight mt-1">
-            {totalMonthlyCommitment.toLocaleString()} <span className="text-sm font-semibold text-slate-400">{currency.code}</span>
+          <div className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
+            {totalMonthlyCommitment.toLocaleString()} <span className="text-xs sm:text-sm font-semibold text-slate-400">{currency.code}</span>
           </div>
-          <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-4 pt-4 border-t border-slate-800/50">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-4 mt-4 pt-4 border-t border-slate-800/50">
             <div className="flex items-center justify-between">
               <span className="text-2xs font-semibold text-slate-400 uppercase">EMI</span>
               <span className="text-xs font-bold text-slate-200">{monthlyEMI.toLocaleString()}</span>

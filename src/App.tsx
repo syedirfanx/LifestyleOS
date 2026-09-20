@@ -13,12 +13,15 @@ import { AuthPage } from './components/AuthPage';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, doc, setDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
+import { sanitizeForFirestore } from './utils/firestore';
+import { AlertCircle, ExternalLink, X } from 'lucide-react';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null);
+  const [firestorePermissionError, setFirestorePermissionError] = useState(false);
 
   const [currentCurrency, setCurrentCurrency] = useState<Currency>(() => {
     try {
@@ -116,19 +119,25 @@ export default function App() {
              setItems(INITIAL_ITEMS);
              // Save initial to firestore
              for (const s of INITIAL_SETUPS) {
-               await setDoc(doc(db, 'setups', s.id), { ...s, userId: firebaseUser.uid });
+               await setDoc(doc(db, 'setups', s.id), sanitizeForFirestore({ ...s, userId: firebaseUser.uid }));
              }
              for (const i of INITIAL_ITEMS) {
-               await setDoc(doc(db, 'items', i.id), { ...i, userId: firebaseUser.uid });
+               await setDoc(doc(db, 'items', i.id), sanitizeForFirestore({ ...i, userId: firebaseUser.uid }));
              }
           } else {
              setSetups(loadedSetups.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
              setItems(loadedItems);
           }
           setDataLoaded(true);
-        } catch (err) {
+        } catch (err: any) {
           console.error("Error fetching data:", err);
-          setDataLoaded(true); // Proceed anyway, but maybe empty
+          // Fallback to local default setups so the app stays functional
+          setSetups(INITIAL_SETUPS);
+          setItems(INITIAL_ITEMS);
+          setDataLoaded(true);
+          if (err?.code === 'permission-denied' || String(err?.message || '').toLowerCase().includes('permission')) {
+            setFirestorePermissionError(true);
+          }
         }
       } else {
         setUser(null);
@@ -157,14 +166,24 @@ export default function App() {
     };
     setSetups((prev) => [newSetup, ...prev]);
 
+    let createdItems: SetupItem[] = [];
     if (initialItems && initialItems.length > 0) {
-      const createdItems: SetupItem[] = initialItems.map((item, idx) => ({
+      createdItems = initialItems.map((item, idx) => ({
         ...item,
         id: `item-init-${Date.now()}-${idx}`,
         setupId: newSetup.id,
         quantity: item.quantity || 1,
       }));
       setItems((prev) => [...prev, ...createdItems]);
+    }
+
+    if (user) {
+      setDoc(doc(db, 'setups', newSetup.id), sanitizeForFirestore({ ...newSetup, userId: user.uid })).catch(console.error);
+      if (createdItems.length > 0) {
+        createdItems.forEach((item) => {
+          setDoc(doc(db, 'items', item.id), sanitizeForFirestore({ ...item, userId: user.uid })).catch(console.error);
+        });
+      }
     }
 
     setActiveSetupId(newSetup.id);
@@ -194,7 +213,7 @@ export default function App() {
     };
     setItems((prev) => [...prev, newItem]);
     if (user) {
-      setDoc(doc(db, 'items', newItem.id), { ...newItem, userId: user.uid }).catch(console.error);
+      setDoc(doc(db, 'items', newItem.id), sanitizeForFirestore({ ...newItem, userId: user.uid })).catch(console.error);
     }
   };
 
@@ -205,7 +224,7 @@ export default function App() {
       if (user) {
         const itemToUpdate = newItems.find(i => i.id === itemId);
         if (itemToUpdate) {
-          setDoc(doc(db, 'items', itemId), { ...itemToUpdate, userId: user.uid }, { merge: true }).catch(console.error);
+          setDoc(doc(db, 'items', itemId), sanitizeForFirestore({ ...itemToUpdate, userId: user.uid }), { merge: true }).catch(console.error);
         }
       }
       return newItems;
@@ -253,7 +272,7 @@ export default function App() {
         setItems((prev) => [...prev, ...newItems]);
         if (user) {
           newItems.forEach(item => {
-            setDoc(doc(db, 'items', item.id), { ...item, userId: user.uid }).catch(console.error);
+            setDoc(doc(db, 'items', item.id), sanitizeForFirestore({ ...item, userId: user.uid })).catch(console.error);
           });
         }
       }
@@ -307,9 +326,41 @@ export default function App() {
           onNewSetup={() => setIsNewSetupModalOpen(true)}
         />
 
+        {firestorePermissionError && (
+          <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 pt-4 relative z-20">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-bold text-amber-300">Firestore Permissions Required</div>
+                  <div className="text-slate-300">
+                    Your database rules in Firebase project <code className="text-amber-200 font-mono">qx-lifestyleos</code> need to allow authenticated users to read and write their setups.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 shrink-0 self-end sm:self-center">
+                <a
+                  href="https://console.firebase.google.com/project/qx-lifestyleos/firestore/rules"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-3 py-1.5 rounded-lg font-semibold flex items-center space-x-1.5 transition-colors"
+                >
+                  <span>Open Rules</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <button
+                  onClick={() => setFirestorePermissionError(false)}
+                  className="text-slate-400 hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Main Container */}
-        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-6 relative z-10 pb-12">
+        <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 relative z-10 pb-12">
         {activeTracker ? (
           <TrackerPage
             items={items}
