@@ -1,14 +1,15 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB2USSxqJVljgv4NCPFnPIz1LuH7fNt8Is",
-  authDomain: "dynamic-reef-6q6d2.firebaseapp.com",
-  projectId: "dynamic-reef-6q6d2",
-  storageBucket: "dynamic-reef-6q6d2.firebasestorage.app",
-  messagingSenderId: "871913049116",
-  appId: "1:871913049116:web:2f435c37023833c32ca3d9"
+  apiKey: "AIzaSyDmHtfQUNj5mUfQ5kHPtgBn0LF5N5J99Jg",
+  authDomain: "qx-lifestyleos.firebaseapp.com",
+  projectId: "qx-lifestyleos",
+  storageBucket: "qx-lifestyleos.firebasestorage.app",
+  messagingSenderId: "431219288818",
+  appId: "1:431219288818:web:8d1a358f46e0208e47be6b",
+  measurementId: "G-6BE3SG4C67"
 };
 
 const app = initializeApp(firebaseConfig);

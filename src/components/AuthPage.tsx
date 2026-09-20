@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Copy, Check, ExternalLink } from 'lucide-react';
 import { StarsBackground } from './StarsBackground';
 import { auth } from '../firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
@@ -11,12 +11,15 @@ interface AuthPageProps {
   onSuccess: () => void;
 }
 
-export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onBack, onSuccess }) => {
+export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onSuccess }) => {
   const [error, setError] = useState('');
+  const [unauthDomain, setUnauthDomain] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const handleGoogleSignIn = async () => {
     setError('');
+    setUnauthDomain(null);
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
@@ -24,8 +27,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onBack, onSucce
       onSuccess();
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/operation-not-allowed') {
-        setError('Google Sign-In is not enabled. Please enable it in the Firebase Console under Authentication > Sign-in method.');
+      if (err.code === 'auth/unauthorized-domain') {
+        const domain = window.location.hostname;
+        setUnauthDomain(domain);
+        setError('This domain is not authorized in Firebase.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Google Sign-In is not enabled in Firebase Console.');
       } else if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
         setError('Sign in was cancelled.');
       } else {
@@ -33,6 +40,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onBack, onSucce
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyDomain = () => {
+    if (unauthDomain) {
+      navigator.clipboard.writeText(unauthDomain);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -79,8 +94,37 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onBack, onSucce
         </p>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold p-3 rounded-xl mb-6 text-center">
-            {error}
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold p-3.5 rounded-xl mb-6 text-left space-y-2.5">
+            <div className="font-bold text-center text-red-300">{error}</div>
+            {unauthDomain && (
+              <div className="space-y-2 pt-1 border-t border-red-500/20 text-slate-300">
+                <div className="text-[11px] text-slate-400">
+                  Add this domain to Firebase Console under Authentication &gt; Settings &gt; Authorized domains:
+                </div>
+                <div className="flex items-center justify-between bg-slate-950/80 rounded-lg px-2.5 py-1.5 border border-slate-800 font-mono text-[11px] text-blue-300 break-all">
+                  <span>{unauthDomain}</span>
+                  <button
+                    type="button"
+                    onClick={copyDomain}
+                    className="ml-2 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[10px] font-sans font-semibold shrink-0 flex items-center space-x-1"
+                  >
+                    {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copied ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+                <div className="text-right">
+                  <a
+                    href="https://console.firebase.google.com/project/qx-lifestyleos/authentication/settings"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center space-x-1 text-[11px] text-blue-400 hover:text-blue-300 underline"
+                  >
+                    <span>Open Firebase Settings</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
         
