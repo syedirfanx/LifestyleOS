@@ -67,7 +67,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onSuccess }) => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="relative z-10 w-full max-w-md bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 sm:p-10 shadow-2xl"
+        className="relative z-10 w-full max-w-md bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl rounded-3xl p-8 sm:p-10 shadow-2xl shadow-black/80"
       >
         <div className="flex justify-center mb-8">
           <div className="relative overflow-hidden group">
