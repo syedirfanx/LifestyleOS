@@ -51,13 +51,13 @@ export default async function handler(req: any, res: any) {
 Provide item name, optional brand, optional model, quantity, and realistic unit price in ${currency}.
 Do not use em dashes or emoji.`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Suggest 5 items for a ${setupTitle} setup in ${country} using ${currency}.`,
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseSchema: {
+    let parsed: any = null;
+    try {
+      const interaction = await ai.interactions.create({
+        model: 'gemini-3.1-flash-lite',
+        input: `Suggest 5 items for a ${setupTitle} setup in ${country} using ${currency}.`,
+        system_instruction: systemInstruction,
+        response_format: {
           type: Type.OBJECT,
           properties: {
             items: {
@@ -78,11 +78,27 @@ Do not use em dashes or emoji.`;
           },
           required: ['items'],
         },
-      },
-    });
+      });
 
-    const parsed = JSON.parse(response.text || '{"items": []}');
-    return res.status(200).json(parsed);
+      const lastStep = interaction.steps?.at(-1);
+      if (lastStep?.type === 'model_output') {
+        const textContent = lastStep.content?.find((c: any) => c.type === 'text') as any;
+        if (textContent?.text) {
+          parsed = JSON.parse(textContent.text.trim());
+        }
+      }
+    } catch (modelErr: any) {
+      console.warn('Vercel API suggest-setup model error, returning fallback items:', modelErr?.message || modelErr);
+      return res.status(200).json({
+        items: [
+          { name: 'Core Primary Furniture', brand: '', model: '', quantity: 1, estimatedPrice: 500 },
+          { name: 'Secondary Unit', brand: '', model: '', quantity: 1, estimatedPrice: 250 },
+          { name: 'Ambient Lighting', brand: '', model: '', quantity: 2, estimatedPrice: 80 },
+        ],
+      });
+    }
+
+    return res.status(200).json(parsed || { items: [] });
   } catch (err: any) {
     return res.status(500).json({ error: 'Failed to generate setup suggestions' });
   }
