@@ -9,7 +9,7 @@ import {
   HeartPulse,
   Building2,
   TrendingUp,
-  Sparkles,
+  Layers,
   Camera,
   Shirt,
   Dumbbell,
@@ -71,5 +71,5 @@ export const AreaIcon: React.FC<AreaIconProps> = ({ name, ...props }) => {
     return <Compass {...props} />;
   }
 
-  return <Sparkles {...props} />;
+  return <Layers {...props} />;
 };

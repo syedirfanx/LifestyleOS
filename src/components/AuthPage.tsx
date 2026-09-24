@@ -79,17 +79,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onSuccess }) => {
                 duration: 8, 
                 ease: "linear"
               }}
-              className="text-xl sm:text-2xl font-extrabold tracking-widest uppercase select-none font-logo bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-emerald-400 to-purple-400 bg-[length:200%_auto]"
+              className="text-xl sm:text-2xl font-bold tracking-widest uppercase select-none font-logo bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-emerald-400 to-purple-400 bg-[length:200%_auto]"
             >
               LIFESTYLE OS
             </motion.h1>
           </div>
         </div>
         
-        <h2 className="text-2xl font-black text-center mb-2 text-white">
+        <h2 className="text-2xl font-bold text-center mb-2 text-white">
           Welcome to Lifestyle OS
         </h2>
-        <p className="text-slate-400 text-center text-sm mb-8 font-medium">
+        <p className="text-slate-300 text-center text-sm mb-8 font-medium">
           Sign in to access your dream setups and save your progress securely in the cloud.
         </p>
 

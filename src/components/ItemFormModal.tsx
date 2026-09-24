@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Check, Info } from 'lucide-react';
+import { X, Cpu, Check, Info } from 'lucide-react';
 import { SetupItem, Currency, ConfidenceLevel, ItemStatus, PaymentMethod, PaymentDetails } from '../types';
 
 interface ItemFormModalProps {
@@ -250,7 +250,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
                     className="bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 px-3 rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 border border-blue-500/20 min-h-[42px]"
                     title="Estimate price with AI"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Cpu className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -259,7 +259,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
             {aiEstimate && (
               <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-3 flex gap-3 text-xs">
                 <div className="mt-0.5 shrink-0">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <Cpu className="w-4 h-4 text-blue-400" />
                 </div>
                 <div className="space-y-1.5 flex-1">
                   <div className="flex flex-wrap items-center justify-between gap-2">

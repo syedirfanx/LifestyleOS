@@ -87,3 +87,41 @@ export interface PriceEstimateResult {
   confidence: ConfidenceLevel;
   notes?: string;
 }
+
+export type PrayerName = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+export type SunnahName = 'tahajjud' | 'duha' | 'witr' | 'rawatib';
+
+export type PrayerStatus = 'not_prayed' | 'prayed' | 'jamaah' | 'late' | 'excused';
+
+export interface DailyPrayerRecord {
+  id?: string;
+  userId?: string;
+  date: string; // YYYY-MM-DD
+  prayers: Record<PrayerName, PrayerStatus>;
+  sunnah?: Partial<Record<SunnahName, boolean>>;
+  notes?: string;
+  updatedAt?: string;
+}
+
+export interface PrayerTimeSlot {
+  id: PrayerName | 'sunrise';
+  name: string;
+  arabicName: string;
+  timeStr: string;
+  minutesFromMidnight: number;
+  isPassed: boolean;
+  isCurrent: boolean;
+  isNext: boolean;
+}
+
+export type CalculationMethodId = 'MWL' | 'ISNA' | 'MAKKAH' | 'KARACHI' | 'EGYPT' | 'DUBAI';
+export type JuristicMethodId = 'STANDARD' | 'HANAFI';
+
+export interface PrayerSettings {
+  calculationMethod: CalculationMethodId;
+  juristicMethod: JuristicMethodId;
+  latitude: number;
+  longitude: number;
+  cityName: string;
+}
+

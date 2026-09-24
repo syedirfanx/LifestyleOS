@@ -44,6 +44,20 @@
           ]
         }
       ]
+    },
+    {
+      "name": "prayerLogs",
+      "description": "Daily prayer tracking records for users.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "The user ID of the owner" },
+        { "name": "date", "type": "string", "description": "Date in YYYY-MM-DD format" },
+        { "name": "prayers", "type": "map", "description": "Prayer statuses map" },
+        { "name": "sunnah", "type": "map", "description": "Sunnah prayers map" },
+        { "name": "notes", "type": "string", "description": "Optional daily notes" },
+        { "name": "updatedAt", "type": "string", "description": "Last updated timestamp" }
+      ],
+      "access": "User owns the document (userId == request.auth.uid)",
+      "indexes": []
     }
   ],
   "firebaseConfig": {

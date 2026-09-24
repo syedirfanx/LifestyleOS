@@ -71,7 +71,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ items, setups, currenc
           {filteredItems.map(item => {
             const setup = setups.find(s => s.id === item.setupId);
             return (
-            <div key={item.id} className="bg-[#0d121f] rounded-2xl p-5 border border-slate-800 flex flex-col justify-between space-y-4">
+            <div key={item.id} className="relative overflow-hidden bg-[#0d121f] rounded-2xl p-5 border border-slate-800 flex flex-col justify-between space-y-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-blue-400 mb-1">
                   {setup?.title || 'Item'}
@@ -126,7 +126,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ items, setups, currenc
               <h2 className="text-base font-bold text-slate-200 border-b border-slate-800 pb-2">{groupName}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {groupItems.map(item => (
-                  <div key={item.id} className="bg-[#0d121f] rounded-2xl p-5 border border-slate-800 flex flex-col justify-between space-y-4">
+                  <div key={item.id} className="relative overflow-hidden bg-[#0d121f] rounded-2xl p-5 border border-slate-800 flex flex-col justify-between space-y-4">
                     <div>
                       <h3 className="text-base font-bold text-slate-100">{item.name}</h3>
                       <div className="text-xs font-semibold uppercase tracking-wide text-blue-400 mt-1">

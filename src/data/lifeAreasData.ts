@@ -843,7 +843,7 @@ export const LIFE_AREAS: LifeArea[] = [
   {
     id: 'events-celebrations',
     name: 'Events & Celebrations',
-    icon: 'Sparkles',
+    icon: 'Calendar',
     description: 'Decorations, lighting, and sounds for special events.',
     subCategories: [
       {

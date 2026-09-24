@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
-import { ArrowLeft, Plus, Sparkles, Trash2, Edit2, Check, X, Info } from 'lucide-react';
+import { ArrowLeft, Plus, Bot, Trash2, Edit2, Check, X, Info } from 'lucide-react';
 import { Setup, SetupItem, Currency, ConfidenceLevel, ItemStatus, PaymentMethod, PaymentDetails } from '../types';
 import { ItemFormModal } from "./ItemFormModal";
 
@@ -249,13 +249,13 @@ export const SetupDetail: React.FC<SetupDetailProps> = ({
           disabled={isSuggestingItems}
           className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer inline-flex items-center space-x-1.5 shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/30 disabled:opacity-50 min-h-[38px]"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <Bot className="w-3.5 h-3.5 text-blue-300" />
           <span>{isSuggestingItems ? 'Generating...' : 'AI Suggest Items'}</span>
         </button>
       </div>
 
       {/* Combined Setup Banner & Items Table */}
-      <div className="bg-[#0d121f] rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white flex flex-col">
+      <div className="relative overflow-hidden bg-[#0d121f] rounded-2xl sm:rounded-3xl shadow-[0_0_30px_rgba(37,99,235,0.08)] text-white flex flex-col">
         {/* Setup Title & Header Banner */}
         <div className="p-4 sm:p-6 md:p-8 relative">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>

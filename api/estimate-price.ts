@@ -77,15 +77,17 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const systemInstruction = `You are an expert market valuation AI for dream setups.
-Estimate a realistic market price for the item based on item name, brand, model, country, and currency.
+    const systemInstruction = `You are a professional real-world retail pricing and market valuation expert.
+Your mission is to provide the true, accurate real-world retail market price for the specified item in the specified country and currency.
+Do NOT output arbitrary rounded guesses or uniform base estimates.
+Analyze the actual manufacturer retail price (MSRP), authentic local retail rates, and realistic import/market costs for the specific brand and model in ${country} using ${currency}.
 Rules:
 - Do not use em dashes.
 - Do not use emoji.
 - Do not include unnecessary conversational filler.
 - Calculate in the specified currency (${currency}).
-- Provide realistic priceRangeMin and priceRangeMax.
-- Assign confidence as 'High', 'Medium', or 'Low'.`;
+- Provide realistic priceRangeMin and priceRangeMax that accurately bracket the current market retail price.
+- Assign confidence as 'High', 'Medium', or 'Low' based on how specific the item, brand, and model details are.`;
 
     const promptText = `Item: ${itemName}
 Brand: ${brand || 'Not specified'}

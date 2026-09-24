@@ -8,6 +8,7 @@ import { SetupDetail } from './components/SetupDetail';
 import { NewSetupModal } from './components/NewSetupModal';
 import { StarsBackground } from './components/StarsBackground';
 import { TrackerPage } from './components/TrackerPage';
+import { PrayerTrackerPage } from './components/PrayerTrackerPage';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
 import { auth, db } from './firebase';
@@ -41,6 +42,19 @@ export default function App() {
     return localStorage.getItem('dream_setup_city') || undefined;
   });
 
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>(() => {
+    try {
+      const savedLat = localStorage.getItem('lifestyle_prayer_lat');
+      const savedLng = localStorage.getItem('lifestyle_prayer_lng');
+      if (savedLat && savedLng) {
+        return { lat: parseFloat(savedLat), lng: parseFloat(savedLng) };
+      }
+    } catch (e) {
+      // ignore
+    }
+    return { lat: 23.8103, lng: 90.4125 };
+  });
+
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 
   const [setups, setSetups] = useState<Setup[]>([]);
@@ -49,7 +63,7 @@ export default function App() {
   const [items, setItems] = useState<SetupItem[]>([]);
 
   const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
-  const [activeTracker, setActiveTracker] = useState<'emi' | 'loans' | 'recurring' | null>(null);
+  const [activeTracker, setActiveTracker] = useState<'emi' | 'loans' | 'recurring' | 'prayer' | null>(null);
   const [isNewSetupModalOpen, setIsNewSetupModalOpen] = useState(false);
   const [isSuggestingItems, setIsSuggestingItems] = useState(false);
 
@@ -66,6 +80,11 @@ export default function App() {
       setCurrentCountry(loc.country);
       setCurrentCurrency(loc.currency);
       if (loc.city) setCity(loc.city);
+      if (loc.latitude && loc.longitude) {
+        setCoordinates({ lat: loc.latitude, lng: loc.longitude });
+        localStorage.setItem('lifestyle_prayer_lat', String(loc.latitude));
+        localStorage.setItem('lifestyle_prayer_lng', String(loc.longitude));
+      }
 
       localStorage.setItem('dream_setup_country', loc.country);
       localStorage.setItem('dream_setup_currency', JSON.stringify(loc.currency));
@@ -324,6 +343,10 @@ export default function App() {
           onRefreshLocation={handleDetectLocation}
           onSelectCurrency={(cur) => setCurrentCurrency(cur)}
           onNewSetup={() => setIsNewSetupModalOpen(true)}
+          onHome={() => {
+            setActiveSetupId(null);
+            setActiveTracker(null);
+          }}
         />
 
         {firestorePermissionError && (
@@ -361,7 +384,15 @@ export default function App() {
         
         {/* Main Container */}
         <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 relative z-10 pb-12">
-        {activeTracker ? (
+        {activeTracker === 'prayer' ? (
+          <PrayerTrackerPage
+            onBack={() => setActiveTracker(null)}
+            initialLatitude={coordinates.lat}
+            initialLongitude={coordinates.lng}
+            countryName={currentCountry}
+            cityName={city}
+          />
+        ) : activeTracker ? (
           <TrackerPage
             items={items}
             setups={setups}

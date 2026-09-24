@@ -7,6 +7,8 @@ export interface LocationState {
   currency: Currency;
   isDetecting: boolean;
   source: 'gps' | 'ip' | 'default';
+  latitude?: number;
+  longitude?: number;
   error?: string;
 }
 
@@ -98,6 +100,8 @@ export async function detectLocationFromGpsOrIp(): Promise<LocationState> {
           countryCode,
           city,
           currency,
+          latitude,
+          longitude,
           isDetecting: false,
           source: 'gps',
         };
@@ -116,12 +120,16 @@ export async function detectLocationFromGpsOrIp(): Promise<LocationState> {
       const country = ipData.country_name || 'Bangladesh';
       const city = ipData.city || '';
       const currency = getCurrencyForCountryCode(countryCode);
+      const latitude = typeof ipData.latitude === 'number' ? ipData.latitude : undefined;
+      const longitude = typeof ipData.longitude === 'number' ? ipData.longitude : undefined;
 
       return {
         country,
         countryCode,
         city,
         currency,
+        latitude,
+        longitude,
         isDetecting: false,
         source: 'ip',
       };
@@ -135,6 +143,8 @@ export async function detectLocationFromGpsOrIp(): Promise<LocationState> {
     country: 'Bangladesh',
     countryCode: 'BD',
     currency: COUNTRY_CURRENCY_MAP['BD'],
+    latitude: 23.8103,
+    longitude: 90.4125,
     isDetecting: false,
     source: 'default',
   };

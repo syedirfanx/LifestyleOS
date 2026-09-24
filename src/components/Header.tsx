@@ -32,6 +32,7 @@ interface HeaderProps {
   onRefreshLocation?: () => void;
   onSelectCurrency?: (currency: Currency) => void;
   onNewSetup: () => void;
+  onHome?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -41,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   isDetectingLocation = false,
   onRefreshLocation,
   onSelectCurrency,
+  onHome,
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -149,7 +151,10 @@ export const Header: React.FC<HeaderProps> = ({
       <header className="bg-[#0f172a]/90 backdrop-blur-md sticky top-0 z-40 text-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Brand */}
-          <div className="relative overflow-hidden group">
+          <button
+            onClick={onHome}
+            className="text-left relative overflow-hidden group cursor-pointer focus:outline-none"
+          >
             <motion.h1 
               initial={{ backgroundPosition: '200% center' }}
               animate={{ backgroundPosition: '-200% center' }}
@@ -158,11 +163,11 @@ export const Header: React.FC<HeaderProps> = ({
                 duration: 8, 
                 ease: "linear"
               }}
-              className="text-xl sm:text-2xl font-extrabold tracking-widest uppercase select-none font-logo bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-emerald-400 to-purple-400 bg-[length:200%_auto]"
+              className="text-xl sm:text-2xl font-bold tracking-widest uppercase select-none font-logo bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-emerald-400 to-purple-400 bg-[length:200%_auto]"
             >
               LIFESTYLE OS
             </motion.h1>
-          </div>
+          </button>
 
           {/* User Account Trigger Button */}
           <div className="relative" ref={dropdownRef}>

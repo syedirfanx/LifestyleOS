@@ -9,7 +9,7 @@ import { CreditCard, CalendarClock, Home, Landmark } from 'lucide-react';
 
 
 interface DashboardProps {
-  onNavigateToTracker?: (tracker: 'emi' | 'loans' | 'recurring') => void;
+  onNavigateToTracker?: (tracker: 'emi' | 'loans' | 'recurring' | 'prayer') => void;
 
   setups: Setup[];
   items: SetupItem[];
@@ -60,6 +60,29 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
 
   const purchasedRecurringItems = recurringItems.filter(i => i.status === 'Active');
   const totalMonthlyCommitment = monthlyEMI + monthlyLoans + purchasedRecurringItems.reduce((sum, i) => sum + (i.paymentDetails?.monthlyCost || i.estimatedPrice || 0), 0);
+
+  const todayPrayerCount = React.useMemo(() => {
+    try {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      const todayKey = `${y}-${m}-${d}`;
+      const cached = localStorage.getItem('lifestyle_prayer_records');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const todayRec = parsed[todayKey];
+        if (todayRec?.prayers) {
+          const keys = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+          return keys.filter((k: string) => todayRec.prayers[k] === 'prayed' || todayRec.prayers[k] === 'jamaah' || todayRec.prayers[k] === 'late').length;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return 0;
+  }, []);
+
   const getSetupCost = (setupId: string) => {
     const isRecurring = setups.find(s => s.id === setupId)?.category === 'Recurring Expenses';
     return items
@@ -149,25 +172,35 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Trackers
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button onClick={() => onNavigateToTracker?.('emi')} className="bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button onClick={() => onNavigateToTracker?.('emi')} className="relative overflow-hidden bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
             <span className="text-sm font-bold text-slate-200 group-hover:text-blue-400 transition-colors">EMI Tracker</span>
             <div className="text-xl font-black text-blue-400">
               {monthlyEMI.toLocaleString()} <span className="text-xs font-semibold text-slate-500">{currency.code}</span>
             </div>
           </button>
              
-          <button onClick={() => onNavigateToTracker?.('loans')} className="bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
+          <button onClick={() => onNavigateToTracker?.('loans')} className="relative overflow-hidden bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
             <span className="text-sm font-bold text-slate-200 group-hover:text-emerald-400 transition-colors">Loan Tracker</span>
             <div className="text-xl font-black text-emerald-400">
               {monthlyLoans.toLocaleString()} <span className="text-xs font-semibold text-slate-500">{currency.code}</span>
             </div>
           </button>
 
-          <button onClick={() => onNavigateToTracker?.('recurring')} className="bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
+          <button onClick={() => onNavigateToTracker?.('recurring')} className="relative overflow-hidden bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
             <span className="text-sm font-bold text-slate-200 group-hover:text-purple-400 transition-colors">Recurring</span>
             <div className="text-xl font-black text-purple-400">
               {purchasedRecurringItems.reduce((sum, i) => sum + (i.paymentDetails?.monthlyCost || i.estimatedPrice || 0), 0).toLocaleString()} <span className="text-xs font-semibold text-slate-500">{currency.code}</span>
+            </div>
+          </button>
+
+          <button onClick={() => onNavigateToTracker?.('prayer')} className="relative overflow-hidden bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group border border-emerald-900/30">
+            <div>
+              <span className="text-sm font-bold text-slate-200 group-hover:text-teal-400 transition-colors">Prayer Tracker</span>
+              <div className="text-2xs text-slate-500 mt-0.5">5 Daily Prayers</div>
+            </div>
+            <div className="text-xl font-black text-teal-400">
+              {todayPrayerCount} <span className="text-xs font-semibold text-slate-500">/ 5</span>
             </div>
           </button>
         </div>
@@ -181,7 +214,7 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
         </div>
 
         {setups.length === 0 ? (
-          <div className="bg-[#0d121f] rounded-2xl p-12 text-center space-y-4 shadow-sm">
+          <div className="relative bg-[#0d121f] rounded-2xl p-12 text-center space-y-4 shadow-sm">
             <div className="w-12 h-12 rounded-full bg-[#0f172a] text-blue-400 flex items-center justify-center mx-auto">
               <Box className="w-6 h-6" />
             </div>
@@ -209,7 +242,7 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
                     window.scrollTo({ top: 0, behavior: 'instant' });
                     onSelectSetup(setup.id);
                   }}
-                  className="group bg-[#0d121f] rounded-2xl p-6 hover:bg-[#131a2b]/80 hover:shadow-[0_0_25px_rgba(37,99,235,0.12)] transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-5 shadow-sm relative text-slate-100"
+                  className="group bg-[#0d121f] rounded-2xl p-6 hover:bg-[#131a2b]/80 hover:shadow-[0_0_25px_rgba(37,99,235,0.12)] transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-5 shadow-sm relative overflow-hidden text-slate-100"
                 >
                   <div className="space-y-4">
                     {/* Primary Area & SubCategory ABOVE Setup Name */}
@@ -288,7 +321,7 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
             {/* Add New Setup Thumbnail Card */}
             <div
               onClick={onNewSetup}
-              className="group bg-[#0d121f]/40 rounded-2xl p-6 hover:bg-[#0d121f] hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col items-center justify-center text-center min-h-[220px] space-y-3"
+              className="group relative overflow-hidden bg-[#0d121f]/40 rounded-2xl p-6 hover:bg-[#0d121f] hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col items-center justify-center text-center min-h-[220px] space-y-3"
             >
               <div className="w-10 h-10 rounded-xl bg-[#0f172a] flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
                 <Plus className="w-5 h-5" />
