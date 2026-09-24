@@ -27,6 +27,7 @@ import {
   Eye
 } from 'lucide-react';
 import { StarsBackground } from './StarsBackground';
+import { Footer } from './Footer';
 
 interface LandingPageProps {
   onNavigateToAuth: (mode: 'login' | 'register') => void;
@@ -339,7 +340,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToAuth }) =>
               return (
                 <div 
                   key={area.id}
-                  className="group relative overflow-hidden p-3 rounded-xl bg-slate-900/30 hover:bg-slate-900/50 border border-slate-800/40 transition-colors pr-10"
+                  className="p-3 rounded-xl bg-slate-900/30 hover:bg-slate-900/50 transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <IconComp className={`w-3.5 h-3.5 ${area.color} shrink-0`} />
@@ -620,15 +621,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToAuth }) =>
         {/* Extended FAQs */}
         <section className="w-full text-left my-12">
           <div className="mb-6">
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Common Questions
-            </div>
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
               Frequently Asked Questions
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 font-normal">
-              Everything you need to know about setups, commitments, and daily routines.
-            </p>
           </div>
 
           <div className="space-y-2.5 max-w-4xl">
@@ -699,9 +694,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToAuth }) =>
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 py-8 px-6 text-center text-xs text-slate-400 font-normal">
-        <p>Lifestyle OS. Built for thoughtful planning and personal clarity.</p>
-      </footer>
+      <Footer />
     </div>
   );
 };

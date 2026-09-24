@@ -40,7 +40,9 @@ import {
   PRAYER_METADATA,
 } from '../utils/prayerTimes';
 import { auth, db } from '../firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, getDoc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { sanitizeForFirestore } from '../utils/firestore';
 
 interface PrayerTrackerPageProps {
   onBack: () => void;
@@ -48,6 +50,7 @@ interface PrayerTrackerPageProps {
   initialLongitude?: number;
   countryName?: string;
   cityName?: string;
+  user?: User | null;
 }
 
 const DHIKR_PRESETS = [
@@ -101,10 +104,27 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
   initialLongitude = 90.4125,
   countryName = 'Bangladesh',
   cityName = 'Dhaka',
+  user,
 }) => {
   // Navigation tabs: tracker | calendar | analytics
   const [activeTab, setActiveTab] = useState<'tracker' | 'calendar' | 'analytics'>('tracker');
   const [analyticsScope, setAnalyticsScope] = useState<'month' | 'day'>('month');
+
+  // Track active user state (prop or auth listener)
+  const [currentUser, setCurrentUser] = useState<User | null>(user || auth.currentUser);
+
+  useEffect(() => {
+    if (user !== undefined) {
+      setCurrentUser(user);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setCurrentUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Date selection state
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
@@ -190,79 +210,101 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
     return getHijriDate(selectedDate);
   }, [selectedDate]);
 
-  // Query Firestore for user prayer logs on mount
+  // Sync prayer settings from Firestore
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!currentUser) return;
+    const settingsDocRef = doc(db, 'prayerSettings', currentUser.uid);
+    getDoc(settingsDocRef)
+      .then((snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.calculationMethod) {
+            setCalcMethod(data.calculationMethod);
+            localStorage.setItem('lifestyle_prayer_method', data.calculationMethod);
+          }
+          if (data.juristicMethod) {
+            setJuristicMethod(data.juristicMethod);
+            localStorage.setItem('lifestyle_prayer_juristic', data.juristicMethod);
+          }
+          if (typeof data.latitude === 'number') {
+            setLatitude(data.latitude);
+            localStorage.setItem('lifestyle_prayer_lat', String(data.latitude));
+          }
+          if (typeof data.longitude === 'number') {
+            setLongitude(data.longitude);
+            localStorage.setItem('lifestyle_prayer_lng', String(data.longitude));
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not read prayerSettings from Firestore:', err);
+      });
+  }, [currentUser]);
+
+  // Real-time synchronization for prayer logs with Firestore
+  useEffect(() => {
+    if (!currentUser) return;
 
     const prayerLogsRef = collection(db, 'prayerLogs');
-    const q = query(prayerLogsRef, where('userId', '==', user.uid));
-    getDocs(q)
-      .then((snapshot) => {
+    const q = query(prayerLogsRef, where('userId', '==', currentUser.uid));
+    
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
         const loaded: Record<string, DailyPrayerRecord> = {};
         snapshot.forEach((docSnap) => {
           const data = docSnap.data() as DailyPrayerRecord;
-          if (data.date) {
+          if (data && data.date) {
             loaded[data.date] = data;
           }
         });
+
         if (Object.keys(loaded).length > 0) {
-          setRecords((prev) => {
-            const merged = { ...prev, ...loaded };
-            localStorage.setItem('lifestyle_prayer_records', JSON.stringify(merged));
-            return merged;
-          });
+          setRecords(loaded);
+          try {
+            localStorage.setItem('lifestyle_prayer_records', JSON.stringify(loaded));
+          } catch (e) {
+            console.error(e);
+          }
         }
-      })
-      .catch((err) => {
-        console.warn('Could not query prayer logs from Firestore:', err);
-      });
-  }, []);
+      },
+      (err) => {
+        console.warn('Real-time sync error with Firestore prayerLogs:', err);
+      }
+    );
 
-  // Fetch Firestore record for selected date
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const docRef = doc(db, 'prayerLogs', `${user.uid}_${dateKey}`);
-    getDoc(docRef)
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data() as DailyPrayerRecord;
-          setRecords((prev) => {
-            const next = { ...prev, [dateKey]: data };
-            localStorage.setItem('lifestyle_prayer_records', JSON.stringify(next));
-            return next;
-          });
-        }
-      })
-      .catch((err) => {
-        console.warn('Could not read prayer log from Firestore:', err);
-      });
-  }, [dateKey]);
+    return () => unsubscribe();
+  }, [currentUser]);
 
   // Save changes to state, localStorage, and Firestore
   const saveDailyRecord = useCallback(
-    (updatedRecord: DailyPrayerRecord) => {
+    async (updatedRecord: DailyPrayerRecord) => {
       setRecords((prev) => {
         const next = { ...prev, [updatedRecord.date]: updatedRecord };
-        localStorage.setItem('lifestyle_prayer_records', JSON.stringify(next));
+        try {
+          localStorage.setItem('lifestyle_prayer_records', JSON.stringify(next));
+        } catch (e) {
+          console.error(e);
+        }
         return next;
       });
 
-      const user = auth.currentUser;
-      if (user) {
-        const docRef = doc(db, 'prayerLogs', `${user.uid}_${updatedRecord.date}`);
-        setDoc(docRef, {
-          ...updatedRecord,
-          userId: user.uid,
-          updatedAt: new Date().toISOString(),
-        }).catch((err) => {
+      const activeUser = currentUser || auth.currentUser;
+      if (activeUser) {
+        try {
+          const docRef = doc(db, 'prayerLogs', `${activeUser.uid}_${updatedRecord.date}`);
+          const payload = sanitizeForFirestore({
+            ...updatedRecord,
+            userId: activeUser.uid,
+            updatedAt: new Date().toISOString(),
+          });
+          await setDoc(docRef, payload, { merge: true });
+        } catch (err) {
           console.warn('Could not sync prayer log to Firestore:', err);
-        });
+        }
       }
     },
-    []
+    [currentUser]
   );
 
   // Quick toggle prayer status (not_prayed <-> prayed)
@@ -372,6 +414,26 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
     localStorage.setItem('lifestyle_prayer_lat', String(newLat));
     localStorage.setItem('lifestyle_prayer_lng', String(newLng));
     setIsSettingsOpen(false);
+
+    const activeUser = currentUser || auth.currentUser;
+    if (activeUser) {
+      const settingsDocRef = doc(db, 'prayerSettings', activeUser.uid);
+      setDoc(
+        settingsDocRef,
+        sanitizeForFirestore({
+          userId: activeUser.uid,
+          calculationMethod: newMethod,
+          juristicMethod: newJuristic,
+          latitude: newLat,
+          longitude: newLng,
+          cityName: cityName,
+          updatedAt: new Date().toISOString(),
+        }),
+        { merge: true }
+      ).catch((err) => {
+        console.warn('Could not sync prayer settings to Firestore:', err);
+      });
+    }
   };
 
   // Calendar matrix computation
@@ -482,48 +544,50 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
   }, [calendarDate, records, dateKey]);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16">
+    <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto pb-20 sm:pb-16">
       {/* Top Header Navigation */}
-      <div className="flex items-center justify-between pt-2">
+      <div className="flex items-center justify-between pt-1 sm:pt-2 gap-2">
         <button
           onClick={() => {
             window.scrollTo({ top: 0, behavior: 'instant' });
             onBack();
           }}
-          className="inline-flex items-center space-x-2 px-3.5 py-2 bg-[#0d151c] rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-xs font-bold cursor-pointer min-h-[38px] border border-slate-800/80"
+          className="inline-flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-3.5 py-2 bg-[#0c141d] rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-xs font-bold cursor-pointer min-h-[40px] shrink-0"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Dashboard</span>
+          <ArrowLeft className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">Back to Dashboard</span>
+          <span className="sm:hidden">Back</span>
         </button>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-[#0d151c] rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-xs font-semibold cursor-pointer border border-slate-800/80"
+            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-[#0c141d] rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-xs font-semibold cursor-pointer min-h-[40px] shrink-0"
           >
-            <Sliders className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Calculation Settings</span>
+            <Sliders className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="hidden sm:inline">Calculation Settings</span>
+            <span className="sm:hidden">Settings</span>
           </button>
         </div>
       </div>
 
       {/* Hero Banner with Islamic Emerald Theme */}
-      <div className="bg-gradient-to-br from-[#061e1a] via-[#0b2923] to-[#041613] rounded-2xl sm:rounded-3xl p-5 sm:p-7 md:p-8 relative overflow-hidden border border-emerald-900/40 text-white shadow-2xl">
+      <div className="bg-gradient-to-br from-[#061e1a] via-[#0b2923] to-[#041613] rounded-2xl sm:rounded-3xl p-4 sm:p-7 md:p-8 relative overflow-hidden text-white shadow-2xl">
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none"></div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-950/60 border border-emerald-800/40 text-emerald-300 text-xs font-medium">
-              <Moon className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
+          <div className="space-y-1.5 sm:space-y-2">
+            <div className="inline-flex flex-wrap items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded-md bg-black/65 backdrop-blur-sm text-emerald-300 text-xs font-medium shadow-sm">
+              <Moon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>{hijriDate}</span>
               <span className="text-emerald-600">|</span>
               <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-emerald-400" />
-                {cityName || countryName}
+                <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span className="truncate max-w-[130px] sm:max-w-none">{cityName || countryName}</span>
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-white">
+            <h1 className="text-xl sm:text-3xl md:text-4xl font-black tracking-tight text-white">
               Prayer Tracker
             </h1>
             <p className="text-xs sm:text-sm text-emerald-200/70 max-w-xl">
@@ -532,7 +596,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
           </div>
 
           {/* Quick Stat Pill */}
-          <div className="bg-[#031512]/90 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-emerald-800/50 min-w-[220px] flex flex-col justify-between shadow-lg">
+          <div className="bg-[#031512]/95 backdrop-blur-md rounded-2xl p-4 sm:p-5 w-full md:w-auto md:min-w-[220px] flex flex-col justify-between shadow-lg">
             <div className="flex items-center justify-between text-xs text-emerald-400/80 mb-1">
               <span className="font-semibold uppercase tracking-wider">This Month</span>
               <Award className="w-3.5 h-3.5" />
@@ -559,110 +623,118 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
       </div>
 
       {/* Main View Mode Selector */}
-      <div className="flex items-center justify-between bg-[#0a1118] p-1.5 rounded-2xl border border-slate-800/80 shadow-md">
-        <div className="flex items-center gap-1.5 w-full sm:w-auto">
+      <div className="bg-[#0c141d] p-1 sm:p-1.5 rounded-2xl shadow-md">
+        <div className="grid grid-cols-3 gap-1 w-full">
           <button
             onClick={() => setActiveTab('tracker')}
-            className={`flex-1 sm:flex-initial inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center justify-center space-x-1.5 px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[42px] ${
               activeTab === 'tracker'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
           >
-            <CheckSquare className="w-3.5 h-3.5" />
-            <span>Daily Tracker</span>
+            <CheckSquare className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Daily Tracker</span>
+            <span className="sm:hidden">Tracker</span>
           </button>
 
           <button
             onClick={() => setActiveTab('calendar')}
-            className={`flex-1 sm:flex-initial inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center justify-center space-x-1.5 px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[42px] ${
               activeTab === 'calendar'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
           >
-            <CalendarIcon className="w-3.5 h-3.5" />
+            <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
             <span>Calendar</span>
           </button>
 
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex-1 sm:flex-initial inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center justify-center space-x-1.5 px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[42px] ${
               activeTab === 'analytics'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Stats & Analysis</span>
+            <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Stats & Analysis</span>
+            <span className="sm:hidden">Stats</span>
           </button>
         </div>
       </div>
 
       {/* VIEW 1: DAILY TRACKER */}
       {activeTab === 'tracker' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Date Navigation Bar */}
-          <div className="bg-[#0a1118] rounded-2xl p-3 sm:p-4 border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 shadow-md">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handleStepDate(-1)}
-                className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors border border-slate-800 cursor-pointer"
-                title="Previous Day"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleSetToday}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors border border-slate-800 cursor-pointer"
-              >
-                Today
-              </button>
-              <button
-                onClick={() => handleStepDate(1)}
-                className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors border border-slate-800 cursor-pointer"
-                title="Next Day"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+          <div className="bg-[#0c141d] rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <button
+                  onClick={() => handleStepDate(-1)}
+                  className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer min-w-[38px] min-h-[38px] flex items-center justify-center"
+                  title="Previous Day"
+                  aria-label="Previous Day"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleSetToday}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer min-h-[38px]"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => handleStepDate(1)}
+                  className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer min-w-[38px] min-h-[38px] flex items-center justify-center"
+                  title="Next Day"
+                  aria-label="Next Day"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm font-bold text-slate-100">
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </span>
+              <div className="flex items-center gap-1.5 text-right sm:text-left">
+                <CalendarIcon className="w-4 h-4 text-emerald-400 shrink-0 hidden sm:block" />
+                <span className="text-xs sm:text-sm font-bold text-slate-100">
+                  {selectedDate.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
             </div>
 
             {/* Progress Tracker Pill */}
-            <div className="flex items-center gap-3 bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800">
+            <div className="flex items-center justify-between sm:justify-start gap-3 bg-slate-900/90 px-3.5 py-2 rounded-xl w-full sm:w-auto">
               <span className="text-xs text-slate-400 font-medium">Daily Obligatory</span>
-              <span className="text-xs font-bold text-emerald-400">
-                {completedCount} / 5
-              </span>
-              <div className="w-20 bg-slate-800 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${(completedCount / 5) * 100}%` }}
-                ></div>
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs font-bold text-emerald-400">
+                  {completedCount} / 5
+                </span>
+                <div className="w-20 bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(completedCount / 5) * 100}%` }}
+                  ></div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Main Grid: 5 Daily Prayers + Side Panels (Qibla & Tasbih) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
             {/* Five Obligatory Prayers List */}
             <div className="lg:col-span-2 space-y-3">
               <div className="flex items-center justify-between pb-1">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+                <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-300">
                   Obligatory Prayers (Fardh)
                 </h2>
-                <span className="text-2xs text-slate-400">Tap prayer to toggle status</span>
+                <span className="text-2xs text-slate-400">Tap to toggle</span>
               </div>
 
               {prayerTimes.slots
@@ -673,41 +745,42 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                   const isCompleted = status === 'prayed' || status === 'jamaah' || status === 'late';
 
                   let statusLabel = 'Not Prayed';
-                  let badgeColor = 'bg-slate-800 text-slate-400 border-slate-700';
+                  let badgeColor = 'bg-[#050910] text-slate-300 hover:bg-[#09111e] hover:text-white shadow-sm';
 
                   if (status === 'prayed') {
                     statusLabel = 'Completed';
-                    badgeColor = 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60';
+                    badgeColor = 'bg-emerald-950/90 text-emerald-300 hover:bg-emerald-900';
                   } else if (status === 'jamaah') {
                     statusLabel = 'In Jamaah';
-                    badgeColor = 'bg-teal-950/80 text-teal-300 border-teal-700/60';
+                    badgeColor = 'bg-teal-950/90 text-teal-300 hover:bg-teal-900';
                   } else if (status === 'late') {
                     statusLabel = 'Late (Qada)';
-                    badgeColor = 'bg-amber-950/80 text-amber-300 border-amber-700/60';
+                    badgeColor = 'bg-amber-950/90 text-amber-300 hover:bg-amber-900';
                   } else if (status === 'excused') {
                     statusLabel = 'Excused';
-                    badgeColor = 'bg-purple-950/80 text-purple-300 border-purple-700/60';
+                    badgeColor = 'bg-purple-950/90 text-purple-300 hover:bg-purple-900';
                   }
 
                   return (
                     <div
                       key={slot.id}
-                      className={`bg-[#0d131a] rounded-2xl p-4 sm:p-5 border transition-all duration-200 flex items-center justify-between gap-4 ${
+                      className={`rounded-2xl p-3.5 sm:p-5 transition-all duration-200 flex items-center justify-between gap-3 sm:gap-4 shadow-sm ${
                         isCompleted
-                          ? 'border-emerald-900/60 bg-gradient-to-r from-[#071915] to-[#0a151d]'
+                          ? 'bg-gradient-to-r from-[#08201a] to-[#0a1620]'
                           : slot.isCurrent
-                          ? 'border-emerald-500/70 bg-[#0d1a1b] ring-1 ring-emerald-500/30'
-                          : 'border-slate-800/80 hover:border-slate-700'
+                          ? 'bg-[#0d221e] ring-1 ring-emerald-500/40'
+                          : 'bg-[#0c141d] hover:bg-[#101a26]'
                       }`}
                     >
-                      <div className="flex items-center space-x-3.5 sm:space-x-4">
+                      <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
                         <button
                           onClick={() => handleQuickTogglePrayer(prayerKey)}
-                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 ${
                             isCompleted
                               ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.4)]'
-                              : 'bg-slate-900 border border-slate-700/80 text-slate-500 hover:border-emerald-500 hover:text-emerald-400'
+                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-emerald-400'
                           }`}
+                          aria-label={`Toggle ${slot.name}`}
                         >
                           {isCompleted ? (
                             <Check className="w-5 h-5 stroke-[2.5]" />
@@ -716,16 +789,16 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                           )}
                         </button>
 
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-base sm:text-lg font-bold text-slate-100">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span className="text-sm sm:text-lg font-bold text-slate-100">
                               {slot.name}
                             </span>
                             <span className="text-xs sm:text-sm text-slate-400 font-arabic">
                               {slot.arabicName}
                             </span>
                             {slot.isCurrent && (
-                              <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400">
                                 Current
                               </span>
                             )}
@@ -736,10 +809,10 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 shrink-0">
                         <button
                           onClick={() => setEditingPrayer(prayerKey)}
-                          className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${badgeColor}`}
+                          className={`text-2xs sm:text-xs font-medium px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors cursor-pointer min-h-[36px] flex items-center whitespace-nowrap ${badgeColor}`}
                         >
                           {statusLabel}
                         </button>
@@ -750,7 +823,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
               {/* Sunrise card */}
               {prayerTimes.slots.find((s) => s.id === 'sunrise') && (
-                <div className="bg-[#090e15] rounded-xl px-4 py-3 border border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                <div className="bg-[#0c141d] rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between text-xs text-slate-400">
                   <div className="flex items-center space-x-2">
                     <span className="font-semibold text-slate-300">Sunrise</span>
                     <span>(Shuruq)</span>
@@ -761,12 +834,12 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                 </div>
               )}
 
-              {/* Sunnah / Nawafil Section */}
-              <div className="pt-4 space-y-3">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+              {/* Sunnah / Voluntary Section */}
+              <div className="pt-3 sm:pt-4 space-y-2.5 sm:space-y-3">
+                <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-300">
                   Sunnah & Voluntary Prayers
                 </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                   {[
                     { id: 'tahajjud', name: 'Tahajjud', sub: 'Night Prayer' },
                     { id: 'duha', name: 'Duha', sub: 'Forenoon' },
@@ -779,18 +852,18 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                       <button
                         key={item.id}
                         onClick={() => handleToggleSunnah(sKey)}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        className={`p-2.5 sm:p-3 rounded-xl text-left transition-all cursor-pointer min-h-[60px] ${
                           isChecked
-                            ? 'bg-emerald-950/60 border-emerald-700/70 text-white shadow-sm'
-                            : 'bg-[#0d131a] border-slate-800 text-slate-400 hover:border-slate-700'
+                            ? 'bg-emerald-950/70 text-white shadow-sm'
+                            : 'bg-[#0c141d] text-slate-400 hover:bg-[#101a26]'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-bold text-slate-200">{item.name}</span>
                           {isChecked ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                           ) : (
-                            <Circle className="w-4 h-4 text-slate-600" />
+                            <Circle className="w-4 h-4 text-slate-600 shrink-0" />
                           )}
                         </div>
                         <div className="text-2xs text-slate-500">{item.sub}</div>
@@ -802,9 +875,9 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
             </div>
 
             {/* Right Sidebar: Qibla & Tasbih */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Qibla Compass Card */}
-              <div className="bg-[#0d141d] rounded-2xl p-5 border border-slate-800 text-white space-y-4 shadow-md">
+              <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-5 text-white space-y-4 shadow-md">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Compass className="w-4 h-4 text-emerald-400" />
@@ -817,8 +890,8 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                   </span>
                 </div>
 
-                <div className="relative w-40 h-40 mx-auto flex items-center justify-center">
-                  <div className="w-40 h-40 rounded-full border-2 border-slate-800 bg-[#070b10] flex items-center justify-center relative shadow-inner">
+                <div className="relative w-36 h-36 sm:w-40 sm:h-40 mx-auto flex items-center justify-center">
+                  <div className="w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-[#060a10] flex items-center justify-center relative shadow-inner">
                     <span className="absolute top-1 text-2xs font-bold text-slate-400">N</span>
                     <span className="absolute bottom-1 text-2xs font-bold text-slate-500">S</span>
                     <span className="absolute left-1.5 text-2xs font-bold text-slate-500">W</span>
@@ -828,8 +901,8 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                       className="w-full h-full absolute flex items-center justify-center transition-transform duration-700 ease-out"
                       style={{ transform: `rotate(${qibla.bearing}deg)` }}
                     >
-                      <div className="w-1.5 h-16 bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)] -translate-y-6"></div>
-                      <div className="w-3 h-3 bg-emerald-300 rounded-full absolute"></div>
+                      <div className="w-1.5 h-14 sm:h-16 bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)] -translate-y-5 sm:-translate-y-6"></div>
+                      <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-300 rounded-full absolute"></div>
                     </div>
                   </div>
                 </div>
@@ -843,14 +916,14 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
               </div>
 
               {/* Digital Tasbih (Dhikr Companion) */}
-              <div className="bg-[#0d141d] rounded-2xl p-5 border border-slate-800 text-white space-y-4 shadow-md">
+              <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-5 text-white space-y-4 shadow-md">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
                     Digital Tasbih
                   </h3>
                   <button
                     onClick={handleTasbihReset}
-                    className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
                     title="Reset counter"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -865,10 +938,10 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                         setSelectedDhikrIndex(idx);
                         setTasbihCount(0);
                       }}
-                      className={`px-2.5 py-1 rounded-lg text-2xs font-medium transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1.5 rounded-lg text-2xs font-medium transition-colors cursor-pointer min-h-[30px] ${
                         selectedDhikrIndex === idx
-                          ? 'bg-emerald-900/80 text-emerald-200 border border-emerald-700/60'
-                          : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                          ? 'bg-emerald-900/90 text-emerald-200'
+                          : 'bg-slate-900 text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       {item.text} ({item.target})
@@ -879,7 +952,8 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                 <div className="flex flex-col items-center justify-center pt-2">
                   <button
                     onClick={handleTasbihTap}
-                    className="w-32 h-32 rounded-full bg-gradient-to-b from-[#0e2722] to-[#061814] border-4 border-emerald-600/50 hover:border-emerald-500 flex flex-col items-center justify-center active:scale-95 transition-all shadow-[0_0_25px_rgba(5,150,105,0.2)] cursor-pointer group"
+                    className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-b from-[#0e2722] to-[#061814] flex flex-col items-center justify-center active:scale-95 transition-all shadow-[0_0_25px_rgba(5,150,105,0.25)] ring-2 ring-emerald-500/30 hover:ring-emerald-400/50 cursor-pointer group"
+                    aria-label="Tap to count Dhikr"
                   >
                     <span className="text-3xl font-black text-white font-mono group-hover:scale-105 transition-transform">
                       {tasbihCount}
@@ -898,50 +972,53 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
       {/* VIEW 2: CALENDAR MATRIX */}
       {activeTab === 'calendar' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Calendar Header with Month Navigation */}
-          <div className="bg-[#0a1118] rounded-2xl p-4 sm:p-5 border border-slate-800/80 flex items-center justify-between shadow-md">
-            <div className="flex items-center space-x-2">
+          <div className="bg-[#0c141d] rounded-2xl p-3 sm:p-5 flex items-center justify-between gap-2 shadow-md">
+            <div className="flex items-center space-x-1 sm:space-x-2">
               <button
                 onClick={() => handleStepMonth(-1)}
-                className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors border border-slate-800 cursor-pointer"
+                className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer min-w-[38px] min-h-[38px] flex items-center justify-center"
                 title="Previous Month"
+                aria-label="Previous Month"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setCalendarDate(new Date())}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors border border-slate-800 cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer min-h-[38px]"
               >
-                Current Month
+                <span className="hidden sm:inline">Current Month</span>
+                <span className="sm:hidden">Current</span>
               </button>
               <button
                 onClick={() => handleStepMonth(1)}
-                className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors border border-slate-800 cursor-pointer"
+                className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer min-w-[38px] min-h-[38px] flex items-center justify-center"
                 title="Next Month"
+                aria-label="Next Month"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
             <div className="text-center">
-              <h2 className="text-base sm:text-lg font-bold text-white">
-                {calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              <h2 className="text-xs sm:text-base md:text-lg font-bold text-white whitespace-nowrap">
+                {calendarDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
               </h2>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+            <div className="flex items-center gap-1 sm:gap-2 text-xs text-slate-400 font-medium shrink-0">
               <span className="text-emerald-400 font-bold">{monthStats.completionRate}%</span>
-              <span>completed</span>
+              <span className="hidden sm:inline">completed</span>
             </div>
           </div>
 
           {/* Calendar Grid */}
-          <div className="bg-[#0d141d] rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-md">
+          <div className="bg-[#0c141d] rounded-2xl p-2.5 sm:p-6 shadow-md">
             {/* Weekday headers */}
             <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName) => (
-                <div key={dayName} className="text-2xs sm:text-xs font-bold uppercase tracking-wider text-slate-500 py-1">
+                <div key={dayName} className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 py-1">
                   {dayName}
                 </div>
               ))}
@@ -950,14 +1027,14 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
             {/* Days grid */}
             <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {calendarCells.map((cell) => {
-                let badgeClass = 'text-slate-500 bg-slate-900/40 border-slate-800/40';
+                let badgeClass = 'text-slate-500 bg-slate-900/60';
 
                 if (cell.status === 'full') {
-                  badgeClass = 'bg-emerald-950/70 border-emerald-700/60 text-emerald-200';
+                  badgeClass = 'bg-emerald-950/80 text-emerald-200';
                 } else if (cell.status === 'partial') {
-                  badgeClass = 'bg-teal-950/50 border-teal-800/50 text-teal-300';
+                  badgeClass = 'bg-teal-950/70 text-teal-300';
                 } else if (cell.status === 'future') {
-                  badgeClass = 'opacity-30 border-transparent bg-transparent';
+                  badgeClass = 'opacity-30 bg-transparent';
                 }
 
                 return (
@@ -967,17 +1044,17 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                       const d = new Date(cell.year, cell.month, cell.day);
                       setSelectedDate(d);
                     }}
-                    className={`min-h-[64px] sm:min-h-[82px] p-1.5 sm:p-2.5 rounded-xl border flex flex-col justify-between transition-all cursor-pointer text-left relative ${
+                    className={`min-h-[54px] sm:min-h-[82px] p-1 sm:p-2.5 rounded-lg sm:rounded-xl flex flex-col justify-between transition-all cursor-pointer text-left relative ${
                       cell.isSelected
-                        ? 'ring-2 ring-emerald-400 bg-emerald-950/30 border-emerald-600 shadow-lg'
+                        ? 'ring-2 ring-emerald-400 bg-emerald-950/40 shadow-lg'
                         : cell.isCurrentMonth
-                        ? 'border-slate-800 hover:border-slate-700 bg-[#0a0f16]'
-                        : 'opacity-40 border-slate-900 bg-slate-950/50'
+                        ? 'bg-[#080d14] hover:bg-[#101a26]'
+                        : 'opacity-30 bg-slate-950/40'
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
                       <span
-                        className={`text-xs sm:text-sm font-bold ${
+                        className={`text-[11px] sm:text-sm font-bold ${
                           cell.isToday
                             ? 'text-emerald-400 underline underline-offset-2'
                             : cell.isCurrentMonth
@@ -988,16 +1065,19 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                         {cell.day}
                       </span>
                       {cell.isToday && (
-                        <span className="text-[9px] uppercase font-bold text-emerald-400 bg-emerald-950/80 px-1 rounded">
-                          Today
-                        </span>
+                        <>
+                          <span className="hidden sm:inline-block text-[9px] uppercase font-bold text-emerald-400 bg-emerald-950/80 px-1 rounded">
+                            Today
+                          </span>
+                          <span className="sm:hidden w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        </>
                       )}
                     </div>
 
-                    <div className="mt-1">
+                    <div className="mt-0.5 sm:mt-1">
                       {cell.status !== 'future' ? (
-                        <div className={`px-1.5 py-0.5 rounded text-[10px] font-bold border inline-block ${badgeClass}`}>
-                          {cell.completedCount} / 5
+                        <div className={`px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold inline-block ${badgeClass}`}>
+                          {cell.completedCount}/5
                         </div>
                       ) : (
                         <span className="text-[10px] text-slate-600">-</span>
@@ -1010,15 +1090,15 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
           </div>
 
           {/* Day Inspector Card for Selected Date */}
-          <div className="bg-[#0d141d] rounded-2xl p-5 border border-slate-800 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="text-2xs font-semibold uppercase tracking-wider text-slate-400">
                 Selected Day Overview
               </div>
-              <h3 className="text-base font-bold text-white">
+              <h3 className="text-sm sm:text-base font-bold text-white">
                 {selectedDate.toLocaleDateString('en-US', {
                   weekday: 'long',
-                  month: 'long',
+                  month: 'short',
                   day: 'numeric',
                   year: 'numeric',
                 })}
@@ -1028,19 +1108,19 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab('tracker')}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer text-center min-h-[40px] flex items-center justify-center"
               >
-                Log Prayers in Daily Tracker
+                Log in Daily Tracker
               </button>
               <button
                 onClick={() => {
                   setActiveTab('analytics');
                   setAnalyticsScope('day');
                 }}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer text-center min-h-[40px] flex items-center justify-center"
               >
                 View Day Analysis
               </button>
@@ -1051,13 +1131,13 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
       {/* VIEW 3: STATS & ANALYSIS */}
       {activeTab === 'analytics' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Scope Selector: Month Analysis vs Day Analysis */}
-          <div className="bg-[#0a1118] p-2 rounded-2xl border border-slate-800/80 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="bg-[#0c141d] p-2 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 w-full sm:w-auto">
               <button
                 onClick={() => setAnalyticsScope('month')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center min-h-[38px] ${
                   analyticsScope === 'month'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -1067,7 +1147,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
               </button>
               <button
                 onClick={() => setAnalyticsScope('day')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center min-h-[38px] ${
                   analyticsScope === 'day'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -1078,11 +1158,12 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
             </div>
 
             {analyticsScope === 'month' ? (
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center justify-between sm:justify-end space-x-1.5 w-full sm:w-auto">
                 <button
                   onClick={() => handleStepMonth(-1)}
-                  className="p-1.5 rounded-lg bg-slate-900 text-slate-300 hover:text-white border border-slate-800 cursor-pointer"
+                  className="p-2 rounded-lg bg-slate-900 text-slate-300 hover:text-white cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
                   title="Previous Month"
+                  aria-label="Previous Month"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
@@ -1091,18 +1172,20 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                 </span>
                 <button
                   onClick={() => handleStepMonth(1)}
-                  className="p-1.5 rounded-lg bg-slate-900 text-slate-300 hover:text-white border border-slate-800 cursor-pointer"
+                  className="p-2 rounded-lg bg-slate-900 text-slate-300 hover:text-white cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
                   title="Next Month"
+                  aria-label="Next Month"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center justify-between sm:justify-end space-x-1.5 w-full sm:w-auto">
                 <button
                   onClick={() => handleStepDate(-1)}
-                  className="p-1.5 rounded-lg bg-slate-900 text-slate-300 hover:text-white border border-slate-800 cursor-pointer"
+                  className="p-2 rounded-lg bg-slate-900 text-slate-300 hover:text-white cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
                   title="Previous Day"
+                  aria-label="Previous Day"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
@@ -1111,8 +1194,9 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                 </span>
                 <button
                   onClick={() => handleStepDate(1)}
-                  className="p-1.5 rounded-lg bg-slate-900 text-slate-300 hover:text-white border border-slate-800 cursor-pointer"
+                  className="p-2 rounded-lg bg-slate-900 text-slate-300 hover:text-white cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
                   title="Next Day"
+                  aria-label="Next Day"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -1122,14 +1206,14 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
           {/* MONTH ANALYSIS CONTENT */}
           {analyticsScope === 'month' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* 4 Metric Summary Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-[#0d141d] rounded-2xl p-4 sm:p-5 border border-slate-800">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                <div className="bg-[#0c141d] rounded-2xl p-3.5 sm:p-5">
                   <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">
                     Monthly Completion
                   </span>
-                  <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-black text-emerald-400 mt-1">
                     {monthStats.completionRate}%
                   </div>
                   <div className="text-2xs text-slate-400 mt-1">
@@ -1137,11 +1221,11 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                   </div>
                 </div>
 
-                <div className="bg-[#0d141d] rounded-2xl p-4 sm:p-5 border border-slate-800">
+                <div className="bg-[#0c141d] rounded-2xl p-3.5 sm:p-5">
                   <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">
-                    In Congregation (Jamaah)
+                    In Jamaah
                   </span>
-                  <div className="text-2xl sm:text-3xl font-black text-teal-400 mt-1">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-black text-teal-400 mt-1">
                     {monthStats.jamaahRate}%
                   </div>
                   <div className="text-2xs text-slate-400 mt-1">
@@ -1149,23 +1233,23 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                   </div>
                 </div>
 
-                <div className="bg-[#0d141d] rounded-2xl p-4 sm:p-5 border border-slate-800">
+                <div className="bg-[#0c141d] rounded-2xl p-3.5 sm:p-5">
                   <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">
                     Current Streak
                   </span>
-                  <div className="text-2xl sm:text-3xl font-black text-amber-400 mt-1">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-black text-amber-400 mt-1">
                     {monthStats.currentStreak} Days
                   </div>
                   <div className="text-2xs text-slate-400 mt-1">
-                    Longest streak: {monthStats.longestStreak} days
+                    Longest: {monthStats.longestStreak} days
                   </div>
                 </div>
 
-                <div className="bg-[#0d141d] rounded-2xl p-4 sm:p-5 border border-slate-800">
+                <div className="bg-[#0c141d] rounded-2xl p-3.5 sm:p-5">
                   <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">
                     Perfect Days
                   </span>
-                  <div className="text-2xl sm:text-3xl font-black text-white mt-1">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-black text-white mt-1">
                     {monthStats.perfectDaysCount}
                   </div>
                   <div className="text-2xs text-slate-400 mt-1">
@@ -1175,12 +1259,12 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
               </div>
 
               {/* Individual Prayer Consistency Breakdown */}
-              <div className="bg-[#0d141d] rounded-2xl p-5 sm:p-6 border border-slate-800 space-y-4">
+              <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-6 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+                  <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-200">
                     Prayer Consistency Breakdown
                   </h3>
-                  <span className="text-2xs text-slate-400">Monthly breakdown per prayer</span>
+                  <span className="text-2xs text-slate-400">Monthly breakdown</span>
                 </div>
 
                 <div className="space-y-3.5">
@@ -1205,7 +1289,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                           </div>
                         </div>
 
-                        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+                        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
                           <div
                             className="bg-gradient-to-r from-emerald-600 to-teal-400 h-2 rounded-full transition-all duration-500"
                             style={{ width: `${stat.percentage}%` }}
@@ -1218,9 +1302,9 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
               </div>
 
               {/* Weekly Performance Overview */}
-              <div className="bg-[#0d141d] rounded-2xl p-5 sm:p-6 border border-slate-800 space-y-4">
+              <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-6 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+                  <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-200">
                     Weekly Progress
                   </h3>
                   <span className="text-2xs text-slate-400">Performance by week</span>
@@ -1228,7 +1312,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {monthStats.weeklyBreakdown.map((w) => (
-                    <div key={w.weekNumber} className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                    <div key={w.weekNumber} className="bg-slate-900/60 p-3.5 rounded-xl">
                       <div className="flex items-center justify-between text-xs mb-2">
                         <span className="font-bold text-slate-300">Week {w.weekNumber}</span>
                         <span className="font-mono font-bold text-emerald-400">{w.percentage}%</span>
@@ -1251,14 +1335,14 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
           {/* DAY ANALYSIS CONTENT */}
           {analyticsScope === 'day' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Day Score Header */}
-              <div className="bg-[#0d141d] rounded-2xl p-5 sm:p-6 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">
                     Daily Analysis
                   </span>
-                  <h2 className="text-lg sm:text-xl font-bold text-white mt-0.5">
+                  <h2 className="text-base sm:text-xl font-bold text-white mt-0.5">
                     {selectedDate.toLocaleDateString('en-US', {
                       weekday: 'long',
                       month: 'long',
@@ -1269,19 +1353,19 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                   <div className="text-xs text-emerald-300 mt-1">{hijriDate}</div>
                 </div>
 
-                <div className="flex items-center gap-4 bg-slate-900/80 px-4 py-3 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between sm:justify-start gap-4 bg-slate-900/80 px-4 py-3 rounded-xl w-full sm:w-auto">
                   <div>
                     <div className="text-2xs text-slate-400 uppercase font-semibold">Obligatory Score</div>
-                    <div className="text-xl font-black text-emerald-400">
-                      {completedCount} / 5 <span className="text-xs text-slate-400">({Math.round((completedCount / 5) * 100)}%)</span>
+                    <div className="text-lg sm:text-xl font-black text-emerald-400">
+                      {completedCount} / 5 <span className="text-xs text-slate-400 font-normal">({Math.round((completedCount / 5) * 100)}%)</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Detailed Breakdown for the 5 Prayers on this date */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+              <div className="space-y-2.5 sm:space-y-3">
+                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-300">
                   Prayer Status Breakdown
                 </h3>
 
@@ -1292,29 +1376,29 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                     const st = currentRecord.prayers[pKey] || 'not_prayed';
 
                     let stText = 'Not Prayed';
-                    let stStyle = 'bg-slate-900 text-slate-400 border-slate-800';
+                    let stStyle = 'bg-[#050910] text-slate-300 shadow-sm';
 
                     if (st === 'prayed') {
-                      stText = 'Completed (On Time)';
-                      stStyle = 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60';
+                      stText = 'Completed';
+                      stStyle = 'bg-emerald-950/90 text-emerald-300';
                     } else if (st === 'jamaah') {
-                      stText = 'In Congregation (Jamaah)';
-                      stStyle = 'bg-teal-950/80 text-teal-300 border-teal-700/60';
+                      stText = 'In Jamaah';
+                      stStyle = 'bg-teal-950/90 text-teal-300';
                     } else if (st === 'late') {
                       stText = 'Late (Qada)';
-                      stStyle = 'bg-amber-950/80 text-amber-300 border-amber-700/60';
+                      stStyle = 'bg-amber-950/90 text-amber-300';
                     } else if (st === 'excused') {
                       stText = 'Excused';
-                      stStyle = 'bg-purple-950/80 text-purple-300 border-purple-700/60';
+                      stStyle = 'bg-purple-950/90 text-purple-300';
                     }
 
                     return (
                       <div
                         key={slot.id}
-                        className="bg-[#0d141d] p-4 rounded-xl border border-slate-800 flex items-center justify-between"
+                        className="bg-[#0c141d] p-3.5 sm:p-4 rounded-xl flex items-center justify-between gap-2"
                       >
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-bold text-white">{slot.name}</span>
                             <span className="text-xs text-slate-400 font-arabic">{slot.arabicName}</span>
                           </div>
@@ -1323,7 +1407,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                           </div>
                         </div>
 
-                        <span className={`px-3 py-1 rounded-lg text-xs font-medium border ${stStyle}`}>
+                        <span className={`px-2.5 sm:px-3 py-1 rounded-lg text-2xs sm:text-xs font-medium shrink-0 whitespace-nowrap ${stStyle}`}>
                           {stText}
                         </span>
                       </div>
@@ -1332,11 +1416,11 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
               </div>
 
               {/* Sunnah Record for this day */}
-              <div className="bg-[#0d141d] rounded-2xl p-5 border border-slate-800 space-y-3">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+              <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-5 space-y-3">
+                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-300">
                   Voluntary & Sunnah Prayers
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                   {[
                     { id: 'tahajjud', name: 'Tahajjud' },
                     { id: 'duha', name: 'Duha' },
@@ -1347,17 +1431,17 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                     return (
                       <div
                         key={sItem.id}
-                        className={`p-3 rounded-xl border flex items-center justify-between ${
+                        className={`p-2.5 sm:p-3 rounded-xl flex items-center justify-between ${
                           done
-                            ? 'bg-emerald-950/60 border-emerald-700 text-emerald-200'
-                            : 'bg-slate-900 border-slate-800 text-slate-500'
+                            ? 'bg-emerald-950/70 text-emerald-200'
+                            : 'bg-slate-900 text-slate-500'
                         }`}
                       >
                         <span className="text-xs font-semibold">{sItem.name}</span>
                         {done ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                         ) : (
-                          <Circle className="w-4 h-4 text-slate-600" />
+                          <Circle className="w-4 h-4 text-slate-600 shrink-0" />
                         )}
                       </div>
                     );
@@ -1371,8 +1455,8 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
       {/* Status Selection Modal */}
       {editingPrayer && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0e1622] border border-slate-800 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#0e1622] rounded-2xl max-w-sm w-full p-4 sm:p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white">
@@ -1382,7 +1466,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
               </div>
               <button
                 onClick={() => setEditingPrayer(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1399,10 +1483,10 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                 <button
                   key={opt.id}
                   onClick={() => handleSetPrayerStatus(editingPrayer, opt.id as PrayerStatus)}
-                  className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                  className={`w-full text-left p-3 rounded-xl transition-all cursor-pointer min-h-[44px] ${
                     currentRecord.prayers[editingPrayer] === opt.id
-                      ? 'bg-emerald-950/80 border-emerald-600 text-white'
-                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-emerald-950/90 text-white shadow-sm ring-1 ring-emerald-500/50'
+                      : 'bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
                   <div className="text-xs font-bold">{opt.label}</div>
@@ -1416,16 +1500,16 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
       {/* Calculation Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0e1622] border border-slate-800 rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#0e1622] rounded-2xl max-w-md w-full p-4 sm:p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-white">Prayer Calculation Settings</h3>
+                <h3 className="text-base sm:text-lg font-bold text-white">Prayer Calculation Settings</h3>
                 <p className="text-xs text-slate-400">Configure methods and geographic coordinates</p>
               </div>
               <button
                 onClick={() => setIsSettingsOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1439,7 +1523,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                 <select
                   value={calcMethod}
                   onChange={(e) => setCalcMethod(e.target.value as CalculationMethodId)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  className="w-full bg-slate-900 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer min-h-[42px]"
                 >
                   {Object.values(CALCULATION_METHODS).map((m) => (
                     <option key={m.id} value={m.id}>
@@ -1457,10 +1541,10 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                   <button
                     type="button"
                     onClick={() => setJuristicMethod('STANDARD')}
-                    className={`py-2 px-3 rounded-xl border text-center transition-colors cursor-pointer ${
+                    className={`py-2.5 px-3 rounded-xl text-center transition-colors cursor-pointer min-h-[42px] ${
                       juristicMethod === 'STANDARD'
-                        ? 'bg-emerald-950 border-emerald-600 text-emerald-300 font-bold'
-                        : 'bg-slate-900 border-slate-800 text-slate-400'
+                        ? 'bg-emerald-950 text-emerald-300 font-bold ring-1 ring-emerald-500/50'
+                        : 'bg-slate-900 text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     Standard (Shafii / Maliki)
@@ -1468,10 +1552,10 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                   <button
                     type="button"
                     onClick={() => setJuristicMethod('HANAFI')}
-                    className={`py-2 px-3 rounded-xl border text-center transition-colors cursor-pointer ${
+                    className={`py-2.5 px-3 rounded-xl text-center transition-colors cursor-pointer min-h-[42px] ${
                       juristicMethod === 'HANAFI'
-                        ? 'bg-emerald-950 border-emerald-600 text-emerald-300 font-bold'
-                        : 'bg-slate-900 border-slate-800 text-slate-400'
+                        ? 'bg-emerald-950 text-emerald-300 font-bold ring-1 ring-emerald-500/50'
+                        : 'bg-slate-900 text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     Hanafi
@@ -1489,7 +1573,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                     step="any"
                     value={latitude}
                     onChange={(e) => setLatitude(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-900 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[42px]"
                   />
                 </div>
                 <div>
@@ -1501,7 +1585,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                     step="any"
                     value={longitude}
                     onChange={(e) => setLongitude(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-900 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[42px]"
                   />
                 </div>
               </div>
@@ -1510,7 +1594,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setIsSettingsOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-900 text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-900 text-slate-400 hover:text-white text-xs font-semibold cursor-pointer min-h-[40px]"
               >
                 Cancel
               </button>
@@ -1518,7 +1602,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                 onClick={() =>
                   handleSaveSettings(calcMethod, juristicMethod, latitude, longitude)
                 }
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/30 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/30 cursor-pointer min-h-[40px]"
               >
                 Save Settings
               </button>

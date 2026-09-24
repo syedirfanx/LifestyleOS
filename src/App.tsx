@@ -11,6 +11,7 @@ import { TrackerPage } from './components/TrackerPage';
 import { PrayerTrackerPage } from './components/PrayerTrackerPage';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
+import { Footer } from './components/Footer';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, doc, setDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
@@ -391,6 +392,7 @@ export default function App() {
             initialLongitude={coordinates.lng}
             countryName={currentCountry}
             cityName={city}
+            user={user}
           />
         ) : activeTracker ? (
           <TrackerPage
@@ -415,6 +417,7 @@ export default function App() {
           />
         ) : (
           <Dashboard
+            user={user}
             setups={setups}
             items={items}
             currency={currentCurrency}
@@ -425,6 +428,9 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Footer */}
+      <Footer />
       </div>
 
       {/* New Setup Modal */}

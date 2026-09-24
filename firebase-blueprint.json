@@ -58,6 +58,20 @@
       ],
       "access": "User owns the document (userId == request.auth.uid)",
       "indexes": []
+    },
+    {
+      "name": "prayerSettings",
+      "description": "User prayer configuration including juristic and calculation methods.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "The user ID of the owner" },
+        { "name": "calculationMethod", "type": "string" },
+        { "name": "juristicMethod", "type": "string" },
+        { "name": "latitude", "type": "number" },
+        { "name": "longitude", "type": "number" },
+        { "name": "cityName", "type": "string" }
+      ],
+      "access": "User owns the document (userId == request.auth.uid)",
+      "indexes": []
     }
   ],
   "firebaseConfig": {

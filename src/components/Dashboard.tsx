@@ -3,14 +3,13 @@ import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { Plus, Trash2, ChevronRight, Box } from 'lucide-react';
 import { Setup, SetupItem, Currency } from '../types';
 import { AreaIcon } from './AreaIcon';
-
 import { CreditCard, CalendarClock, Home, Landmark } from 'lucide-react';
-
-
+import { User } from 'firebase/auth';
+import { auth } from '../firebase';
 
 interface DashboardProps {
   onNavigateToTracker?: (tracker: 'emi' | 'loans' | 'recurring' | 'prayer') => void;
-
+  user?: User | null;
   setups: Setup[];
   items: SetupItem[];
   currency: Currency;
@@ -20,7 +19,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
-
+  user,
   setups,
   items,
   currency,
@@ -30,6 +29,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateToTracker,
 }) => {
   const [setupToDelete, setSetupToDelete] = useState<string | null>(null);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const getFirstName = () => {
+    const currentUser = user || auth.currentUser;
+    if (currentUser?.displayName) {
+      const parts = currentUser.displayName.trim().split(/\s+/);
+      if (parts[0]) return parts[0];
+    }
+    if (currentUser?.email) {
+      const username = currentUser.email.split('@')[0];
+      if (username.toLowerCase().startsWith('syed')) {
+        return 'Syed';
+      }
+      const match = username.match(/^[a-zA-Z]+/);
+      if (match && match[0]) {
+        const raw = match[0];
+        return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+      }
+    }
+    return '';
+  };
+
+  const greeting = getGreeting();
+  const firstName = getFirstName();
 
   // Calculate total dream cost across all setups
   
@@ -106,12 +135,24 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
   return (
     <div className="space-y-8 pb-16">
       
+      {/* Greeting Header */}
+      <div className="pt-1">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+          {greeting}
+          {firstName ? (
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
+              , {firstName}
+            </span>
+          ) : null}
+        </h1>
+      </div>
+
       {/* Grand Total Hero Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Dream Worth */}
+        {/* Setup Value */}
         <div className="bg-[#0d121f] rounded-2xl sm:rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-sm text-white">
           <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">Total Dream Worth</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">Total Setup Value</span>
           <div className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
             {totalDreamCost.toLocaleString()} <span className="text-xs sm:text-sm font-semibold text-slate-400">{currency.code}</span>
           </div>
@@ -194,11 +235,8 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
             </div>
           </button>
 
-          <button onClick={() => onNavigateToTracker?.('prayer')} className="relative overflow-hidden bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group border border-emerald-900/30">
-            <div>
-              <span className="text-sm font-bold text-slate-200 group-hover:text-teal-400 transition-colors">Prayer Tracker</span>
-              <div className="text-2xs text-slate-500 mt-0.5">5 Daily Prayers</div>
-            </div>
+          <button onClick={() => onNavigateToTracker?.('prayer')} className="relative overflow-hidden bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
+            <span className="text-sm font-bold text-slate-200 group-hover:text-teal-400 transition-colors">Prayer Tracker</span>
             <div className="text-xl font-black text-teal-400">
               {todayPrayerCount} <span className="text-xs font-semibold text-slate-500">/ 5</span>
             </div>

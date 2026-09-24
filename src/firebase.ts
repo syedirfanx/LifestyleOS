@@ -1,17 +1,21 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import appletConfig from "../firebase-applet-config.json";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDmHtfQUNj5mUfQ5kHPtgBn0LF5N5J99Jg",
-  authDomain: "qx-lifestyleos.firebaseapp.com",
-  projectId: "qx-lifestyleos",
-  storageBucket: "qx-lifestyleos.firebasestorage.app",
-  messagingSenderId: "431219288818",
-  appId: "1:431219288818:web:8d1a358f46e0208e47be6b",
-  measurementId: "G-6BE3SG4C67"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || appletConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || appletConfig.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || appletConfig.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig.appId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || appletConfig.measurementId
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+const databaseId = appletConfig.firestoreDatabaseId || "(default)";
+export const db = getFirestore(app, databaseId);
