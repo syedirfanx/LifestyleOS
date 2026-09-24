@@ -72,6 +72,19 @@
       ],
       "access": "User owns the document (userId == request.auth.uid)",
       "indexes": []
+    },
+    {
+      "name": "users",
+      "description": "User profile settings including name and gender.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "The user ID of the owner" },
+        { "name": "displayName", "type": "string" },
+        { "name": "email", "type": "string" },
+        { "name": "gender", "type": "string" },
+        { "name": "updatedAt", "type": "string" }
+      ],
+      "access": "User owns the document (userId == request.auth.uid)",
+      "indexes": []
     }
   ],
   "firebaseConfig": {

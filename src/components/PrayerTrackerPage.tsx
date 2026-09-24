@@ -63,41 +63,7 @@ const DHIKR_PRESETS = [
 
 const PRAYER_KEYS: PrayerName[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
 
-// Helper to seed realistic baseline records if sparse
-function generateDefaultRecords(): Record<string, DailyPrayerRecord> {
-  const result: Record<string, DailyPrayerRecord> = {};
-  const today = new Date();
-
-  for (let i = 0; i < 28; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const key = `${y}-${m}-${day}`;
-
-    // Seed realistic pattern: mostly completed, some in jama'ah
-    const seed: Record<PrayerName, PrayerStatus> = {
-      fajr: i % 7 === 0 ? 'late' : 'prayed',
-      dhuhr: i % 4 === 0 ? 'jamaah' : 'prayed',
-      asr: i % 5 === 0 ? 'jamaah' : 'prayed',
-      maghrib: i % 3 === 0 ? 'jamaah' : 'prayed',
-      isha: i % 6 === 0 ? 'late' : 'prayed',
-    };
-
-    result[key] = {
-      date: key,
-      prayers: seed,
-      sunnah: {
-        rawatib: i % 2 === 0,
-        witr: i % 3 !== 0,
-      },
-    };
-  }
-
-  return result;
-}
-
+// Default empty records - new users start clean at 0
 export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
   onBack,
   initialLatitude = 23.8103,
@@ -153,20 +119,18 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Daily records map by YYYY-MM-DD
+  // Daily records map by YYYY-MM-DD - starts empty for new users
   const [records, setRecords] = useState<Record<string, DailyPrayerRecord>>(() => {
     try {
       const cached = localStorage.getItem('lifestyle_prayer_records');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Object.keys(parsed).length > 0) return parsed;
+        if (parsed && typeof parsed === 'object') return parsed;
       }
     } catch {
       // fallback
     }
-    const initial = generateDefaultRecords();
-    localStorage.setItem('lifestyle_prayer_records', JSON.stringify(initial));
-    return initial;
+    return {};
   });
 
   // Digital Tasbih state
@@ -259,13 +223,12 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
           }
         });
 
-        if (Object.keys(loaded).length > 0) {
-          setRecords(loaded);
-          try {
-            localStorage.setItem('lifestyle_prayer_records', JSON.stringify(loaded));
-          } catch (e) {
-            console.error(e);
-          }
+        // If snapshot comes back, sync user's actual saved records (empty if brand new user)
+        setRecords(loaded);
+        try {
+          localStorage.setItem('lifestyle_prayer_records', JSON.stringify(loaded));
+        } catch (e) {
+          console.error(e);
         }
       },
       (err) => {

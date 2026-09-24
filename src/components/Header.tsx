@@ -1,28 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Settings, MapPin, Locate, Loader2, Globe, X, Lock, LogOut, ChevronDown, KeyRound, Shield } from 'lucide-react';
+import { User, Settings, MapPin, Locate, Loader2, Globe, X, Lock, LogOut, ChevronDown, Shield, Trash2, AlertTriangle, Check } from 'lucide-react';
 import { motion } from 'motion/react';
-import { auth } from '../firebase';
-import { signOut, RecaptchaVerifier, linkWithPhoneNumber } from 'firebase/auth';
+import { auth, db } from '../firebase';
+import { signOut, deleteUser } from 'firebase/auth';
+import { collection, query, where, getDocs, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { Currency } from '../types';
 import { COMMON_CURRENCIES } from '../utils/locationCurrency';
-
-declare global {
-  interface Window {
-    recaptchaVerifier: any;
-  }
-}
-
-const COUNTRY_PHONE_CODES = [
-  { code: '+880', label: 'BD (+880)' },
-  { code: '+1', label: 'US (+1)' },
-  { code: '+44', label: 'UK (+44)' },
-  { code: '+91', label: 'IN (+91)' },
-  { code: '+971', label: 'AE (+971)' },
-  { code: '+65', label: 'SG (+65)' },
-  { code: '+966', label: 'SA (+966)' },
-  { code: '+61', label: 'AU (+61)' },
-  { code: '+86', label: 'CN (+86)' },
-];
 
 interface HeaderProps {
   currentCurrency: Currency;
@@ -48,23 +31,72 @@ export const Header: React.FC<HeaderProps> = ({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'security'>('profile');
 
-  const [firstName, setFirstName] = useState(auth.currentUser?.displayName?.split(' ')[0] || 'User');
-  const [lastName, setLastName] = useState(auth.currentUser?.displayName?.split(' ').slice(1).join(' ') || '');
-  const [userEmail, setUserEmail] = useState(auth.currentUser?.email || '');
-  const userPhoto = auth.currentUser?.photoURL || null;
-  const [countryCode, setCountryCode] = useState('+880');
-  const [phoneDigits, setPhoneDigits] = useState('');
-  const [gender, setGender] = useState('');
+  const currentUser = auth.currentUser;
+  const userPhoto = currentUser?.photoURL || null;
+  const userEmail = currentUser?.email || '';
 
-  const [currentPass, setCurrentPass] = useState('');
-  const [newPass, setNewPass] = useState('');
-  const [passMessage, setPassMessage] = useState('');
-  const [phoneVerifying, setPhoneVerifying] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [displayName, setDisplayName] = useState(currentUser?.displayName || 'User');
+  const [gender, setGender] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Account deletion state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load user profile & stored gender from Firestore and localStorage
+  useEffect(() => {
+    const loadUserData = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      if (user.displayName) {
+        setDisplayName(user.displayName);
+      }
+
+      const localGender = localStorage.getItem(`lifestyle_user_gender_${user.uid}`);
+      if (localGender) {
+        setGender(localGender);
+      }
+
+      // Check Firestore users collection
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          if (data.gender) {
+            setGender(data.gender);
+            localStorage.setItem(`lifestyle_user_gender_${user.uid}`, data.gender);
+          }
+          if (data.displayName) {
+            setDisplayName(data.displayName);
+          }
+        }
+      } catch {
+        // Fallback: check prayerSettings document if users collection is not yet permitted
+        try {
+          const pRef = doc(db, 'prayerSettings', user.uid);
+          const pSnap = await getDoc(pRef);
+          if (pSnap.exists()) {
+            const data = pSnap.data();
+            if (data.gender) {
+              setGender(data.gender);
+              localStorage.setItem(`lifestyle_user_gender_${user.uid}`, data.gender);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    loadUserData();
+  }, [isSettingsModalOpen]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -80,60 +112,62 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, [isDropdownOpen]);
 
-  const handleSavePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentPass || !newPass) {
-      setPassMessage('Please enter current and new password');
+  const handleSaveSettings = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      setIsSettingsModalOpen(false);
       return;
     }
-    setPassMessage('Password updated successfully');
-    setCurrentPass('');
-    setNewPass('');
+
+    setIsSaving(true);
+    const trimmedName = displayName.trim() || user.displayName || 'User';
+
+    // 1. Persist locally for immediate offline cache
+    if (gender) {
+      localStorage.setItem(`lifestyle_user_gender_${user.uid}`, gender);
+    }
+    localStorage.setItem(`lifestyle_user_name_${user.uid}`, trimmedName);
+
+    // 3. Persist profile info to Firestore users collection
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(
+        userDocRef,
+        {
+          userId: user.uid,
+          displayName: trimmedName,
+          email: user.email || '',
+          gender: gender || '',
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (err: any) {
+      console.warn('Could not save to users collection, trying prayerSettings fallback:', err?.message || err);
+      // Fallback: save to prayerSettings which already has rule permissions configured
+      try {
+        const prayerDocRef = doc(db, 'prayerSettings', user.uid);
+        await setDoc(
+          prayerDocRef,
+          {
+            userId: user.uid,
+            gender: gender || '',
+            displayName: trimmedName,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (fallbackErr: any) {
+        console.warn('Fallback sync also unavailable:', fallbackErr?.message || fallbackErr);
+      }
+    }
+
+    setSaveSuccess(true);
     setTimeout(() => {
-      setPassMessage('');
-    }, 2000);
-  };
-
-  const handleVerifyPhone = async () => {
-    if (!phoneDigits) return;
-    setPhoneVerifying(true);
-    try {
-      const phoneNumber = `${countryCode}${phoneDigits}`;
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible'
-        });
-      }
-      
-      const appVerifier = window.recaptchaVerifier;
-      if (auth.currentUser) {
-        const result = await linkWithPhoneNumber(auth.currentUser, phoneNumber, appVerifier);
-        setConfirmationResult(result);
-        setOtpSent(true);
-      }
-    } catch (e: any) {
-      console.error(e);
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
-      }
-      alert('Error: ' + e.message);
-    } finally {
-      setPhoneVerifying(false);
-    }
-  };
-
-  const handleConfirmOtp = async () => {
-    if (!otpCode || !confirmationResult) return;
-    try {
-      await confirmationResult.confirm(otpCode);
-      setOtpSent(false);
-      setConfirmationResult(null);
-      alert('Phone number verified and linked!');
-    } catch (e: any) {
-      console.error(e);
-      alert('Invalid OTP: ' + e.message);
-    }
+      setSaveSuccess(false);
+      setIsSettingsModalOpen(false);
+    }, 400);
+    setIsSaving(false);
   };
 
   const handleLogout = async () => {
@@ -141,10 +175,88 @@ export const Header: React.FC<HeaderProps> = ({
     try {
       await signOut(auth);
       localStorage.removeItem('lifestyle_os_auth');
+      localStorage.removeItem('lifestyle_prayer_records');
     } catch (e) {
       console.error(e);
     }
   };
+
+  const handleDeleteAccount = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    if (deleteConfirmText.trim().toLowerCase() !== 'delete') {
+      setDeleteError('Type DELETE in the box below to proceed.');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    setDeleteError('');
+
+    try {
+      const uid = user.uid;
+
+      // 1. Delete user setups from Firestore
+      try {
+        const setupsSnap = await getDocs(query(collection(db, 'setups'), where('userId', '==', uid)));
+        const deleteSetupPromises = setupsSnap.docs.map((d) => deleteDoc(d.ref));
+        await Promise.all(deleteSetupPromises);
+      } catch (err) {
+        console.warn('Error deleting setups:', err);
+      }
+
+      // 2. Delete user items from Firestore
+      try {
+        const itemsSnap = await getDocs(query(collection(db, 'items'), where('userId', '==', uid)));
+        const deleteItemPromises = itemsSnap.docs.map((d) => deleteDoc(d.ref));
+        await Promise.all(deleteItemPromises);
+      } catch (err) {
+        console.warn('Error deleting items:', err);
+      }
+
+      // 3. Delete user prayer logs
+      try {
+        const prayerLogsSnap = await getDocs(query(collection(db, 'prayerLogs'), where('userId', '==', uid)));
+        const deleteLogsPromises = prayerLogsSnap.docs.map((d) => deleteDoc(d.ref));
+        await Promise.all(deleteLogsPromises);
+      } catch (err) {
+        console.warn('Error deleting prayer logs:', err);
+      }
+
+      // 4. Delete user prayer settings
+      try {
+        await deleteDoc(doc(db, 'prayerSettings', uid));
+      } catch (err) {
+        console.warn('Error deleting prayer settings:', err);
+      }
+
+      // 5. Delete user profile document
+      try {
+        await deleteDoc(doc(db, 'users', uid));
+      } catch (err) {
+        console.warn('Error deleting user profile:', err);
+      }
+
+      // 6. Clear local storage
+      localStorage.clear();
+
+      // 7. Delete Firebase Auth user
+      await deleteUser(user);
+
+      setIsDeleteModalOpen(false);
+      setIsSettingsModalOpen(false);
+    } catch (err: any) {
+      console.error('Failed to delete account:', err);
+      if (err?.code === 'auth/requires-recent-login') {
+        setDeleteError('For security, deleting your account requires a recent login. Please sign out, log in again, and retry.');
+      } else {
+        setDeleteError(err?.message || 'Failed to delete account. Please try again.');
+      }
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const firstName = displayName.split(' ')[0] || 'User';
 
   return (
     <>
@@ -191,10 +303,10 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Regular Application User Dropdown */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#0d121f] rounded-xl shadow-xl z-50 py-1.5 text-xs text-slate-200">
+              <div className="absolute right-0 mt-2 w-64 bg-[#0d121f] rounded-xl shadow-xl z-50 py-1.5 text-xs text-slate-200 border border-slate-800/80">
                 {/* Profile Header */}
                 <div className="px-3.5 py-2.5 bg-slate-950/40">
-                  <p className="font-semibold text-slate-100">{firstName} {lastName}</p>
+                  <p className="font-semibold text-slate-100">{displayName}</p>
                   <p className="text-2xs text-slate-400 truncate mt-0.5">{userEmail}</p>
                 </div>
 
@@ -237,17 +349,13 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     className="w-full text-left px-3.5 py-2 text-slate-300 hover:bg-[#131a2b] hover:text-white flex items-center space-x-2.5 transition-colors cursor-pointer"
                   >
-                    <Lock className="w-4 h-4 text-blue-400" />
-                    <span>Password & Security</span>
+                    <Shield className="w-4 h-4 text-blue-400" />
+                    <span>Security</span>
                   </button>
                 </div>
 
-                {/* Footer Actions */}
-                <div className="pt-1">
-                  <div className="px-3.5 py-1.5 text-2xs text-slate-400 flex justify-between items-center">
-                    <span>Version</span>
-                    <span className="text-slate-500 font-medium">v1.0.4</span>
-                  </div>
+                {/* Footer Actions (Version removed) */}
+                <div className="pt-1 border-t border-slate-800/60">
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-3.5 py-2 text-rose-400 hover:bg-rose-950/20 hover:text-rose-300 flex items-center space-x-2.5 transition-colors cursor-pointer"
@@ -262,12 +370,12 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </header>
 
-      {/* Settings Modal (Standard App Modal without Left Sidebar) */}
+      {/* Settings Modal */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 z-50 bg-[#03050a]/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#0d121f] rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden text-slate-100 flex flex-col max-h-[90vh]">
+          <div className="bg-[#0d121f] rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden text-slate-100 flex flex-col max-h-[90vh] border border-slate-800">
             {/* Modal Header & Close */}
-            <div className="flex items-center justify-between px-5 py-4 shrink-0 bg-[#0f172a]">
+            <div className="flex items-center justify-between px-5 py-4 shrink-0 bg-[#0f172a] border-b border-slate-800/80">
               <h3 className="text-base font-bold text-white">
                 Settings
               </h3>
@@ -316,158 +424,91 @@ export const Header: React.FC<HeaderProps> = ({
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Lock className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Password & Security</span>
-                  <span className="sm:hidden">Security</span>
+                  <Shield className="w-3.5 h-3.5 shrink-0" />
+                  <span>Security</span>
                 </button>
               </div>
 
               {/* Account Settings Tab */}
               {activeTab === 'profile' && (
                 <div className="space-y-4 pt-2">
-                  <div className="flex flex-col items-center space-y-3 pb-2 border-b border-slate-800/50">
-                    <div className="relative group cursor-pointer">
-                      <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden group-hover:scale-105 transition-transform duration-300">
-                        {firstName.charAt(0)}{lastName.charAt(0)}
+                  {/* Profile Image: kept from Gmail, no upload */}
+                  <div className="flex flex-col items-center space-y-2 pb-3 border-b border-slate-800/50">
+                    {userPhoto ? (
+                      <img
+                        src={userPhoto}
+                        referrerPolicy="no-referrer"
+                        alt="Profile"
+                        className="w-20 h-20 rounded-full object-cover shadow-lg border-2 border-slate-700/80"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                        {displayName.charAt(0) || 'U'}
                       </div>
-                      <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-[10px] font-bold text-white uppercase tracking-wider">Change</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">
-                    {/* Names Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5 relative group">
+                    {/* Name: Blocked as no change, like email */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                          First Name
+                          Name
                         </label>
-                        <input
-                          type="text"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          className="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm font-semibold focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all group-hover:border-slate-700"
-                        />
+                        <span className="text-[10px] font-medium text-slate-500 flex items-center space-x-1">
+                          <Lock className="w-2.5 h-2.5" />
+                          <span>Cannot be changed</span>
+                        </span>
                       </div>
-
-                      <div className="space-y-1.5 relative group">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                          Last Name
-                        </label>
-                        <input
-                          type="text"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          className="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm font-semibold focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all group-hover:border-slate-700"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Email */}
-                    <div className="space-y-1.5 relative group">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                        Email Address
-                      </label>
                       <input
-                        type="email"
-                        value={userEmail}
-                        onChange={(e) => setUserEmail(e.target.value)}
-                        className="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm font-semibold focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all group-hover:border-slate-700"
+                        type="text"
+                        value={displayName}
+                        disabled
+                        readOnly
+                        className="w-full bg-slate-950/60 border border-slate-800/60 rounded-xl px-4 py-2.5 text-slate-400 text-sm font-semibold cursor-not-allowed select-none opacity-80"
                       />
                     </div>
 
-                    {/* Gender & Phone Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5 relative group">
+                    {/* Email: Blocked as no change */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                          Gender
+                          Email Address
                         </label>
-                        <div className="relative">
-                          <select
-                            value={gender}
-                            onChange={(e) => setGender(e.target.value)}
-                            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm font-semibold focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all group-hover:border-slate-700 appearance-none cursor-pointer"
-                          >
-                            <option value="" disabled className="bg-[#131a2b] text-slate-100 hidden">Select your gender</option>
-                            <option value="male" className="bg-[#131a2b] text-slate-100">Male</option>
-                            <option value="female" className="bg-[#131a2b] text-slate-100">Female</option>
-                            <option value="non_binary" className="bg-[#131a2b] text-slate-100">Non-binary</option>
-                            <option value="prefer_not_to_say" className="bg-[#131a2b] text-slate-100">Prefer not to say</option>
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-                        </div>
+                        <span className="text-[10px] font-medium text-slate-500 flex items-center space-x-1">
+                          <Lock className="w-2.5 h-2.5" />
+                          <span>Cannot be changed</span>
+                        </span>
                       </div>
-                      
-                      <div className="space-y-1.5 relative group">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                          Phone
-                        </label>
-                        <div className="flex bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden focus-within:border-blue-500/50 focus-within:bg-slate-900 transition-all group-hover:border-slate-700">
-                          <div className="relative border-r border-slate-800 bg-slate-900/80">
-                            <select
-                              value={countryCode}
-                              onChange={(e) => setCountryCode(e.target.value)}
-                              className="w-full h-full bg-transparent text-slate-200 text-sm font-semibold px-3 focus:outline-none appearance-none cursor-pointer pl-3 pr-8 min-w-[80px]"
-                            >
-                              {COUNTRY_PHONE_CODES.map((item) => (
-                                <option key={item.code} value={item.code} className="bg-[#131a2b] text-slate-100">
-                                  {item.label}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-                          </div>
-                          <input
-                            type="tel"
-                            value={phoneDigits}
-                            onChange={(e) => {
-                              let val = e.target.value;
-                              if (val.startsWith('0')) {
-                                val = val.replace(/^0+/, '');
-                              }
-                              setPhoneDigits(val);
-                            }}
-                            placeholder=""
-                            className="w-full bg-transparent px-3 py-2.5 text-slate-200 font-semibold focus:outline-none text-sm min-w-0"
-                          />
-                        </div>
-                        {phoneDigits && !otpSent && (
-                          <div className="mt-2 text-right">
-                             <button
-                               onClick={handleVerifyPhone}
-                               disabled={phoneVerifying}
-                               className="text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg font-bold transition-all"
-                             >
-                               {phoneVerifying ? 'Verifying...' : 'Verify Number'}
-                             </button>
-                          </div>
-                        )}
-                        {otpSent && (
-                          <div className="mt-2 flex space-x-2">
-                             <input 
-                               type="text" 
-                               value={otpCode}
-                               onChange={e => setOtpCode(e.target.value)}
-                               placeholder="OTP Code"
-                               className="flex-1 bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-500/50"
-                             />
-                             <button
-                               onClick={handleConfirmOtp}
-                               className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg font-bold transition-all"
-                             >
-                               Confirm
-                             </button>
-                          </div>
-                        )}
-                        <div id="recaptcha-container"></div>
+                      <input
+                        type="email"
+                        value={userEmail}
+                        disabled
+                        readOnly
+                        className="w-full bg-slate-950/60 border border-slate-800/60 rounded-xl px-4 py-2.5 text-slate-400 text-sm font-semibold cursor-not-allowed select-none opacity-80"
+                      />
+                    </div>
+
+                    {/* Gender Selection: Stored and saved for that user */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
+                        Gender
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value)}
+                          className="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm font-semibold focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all hover:border-slate-700 appearance-none cursor-pointer"
+                        >
+                          <option value="" disabled className="bg-[#131a2b] text-slate-400 hidden">Select your gender</option>
+                          <option value="male" className="bg-[#131a2b] text-slate-100">Male</option>
+                          <option value="female" className="bg-[#131a2b] text-slate-100">Female</option>
+                          <option value="non_binary" className="bg-[#131a2b] text-slate-100">Non-binary</option>
+                          <option value="prefer_not_to_say" className="bg-[#131a2b] text-slate-100">Prefer not to say</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                       </div>
                     </div>
-                  </div>
-                  <div className="pt-2 flex justify-end">
-                    <button className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20">
-                      Save Changes
-                    </button>
                   </div>
                 </div>
               )}
@@ -519,7 +560,7 @@ export const Header: React.FC<HeaderProps> = ({
                     >
                       {COMMON_CURRENCIES.map((c) => (
                         <option key={c.code} value={c.code} className="bg-[#131a2b] text-slate-100">
-                          {c.code} ({c.symbol}) - {c.name}
+                          {c.code} ({c.symbol}) : {c.name}
                         </option>
                       ))}
                     </select>
@@ -527,70 +568,188 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
 
-              {/* Security Tab */}
+              {/* Security Tab (Password removed as authentication is passwordless) */}
               {activeTab === 'security' && (
-                <form onSubmit={handleSavePassword} className="space-y-3.5 text-xs pt-1">
+                <div className="space-y-4 text-xs pt-1">
+                  {/* Passwordless Sign-in Status */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-300 block">
-                      Current Password
+                    <label className="text-xs font-medium text-slate-300 flex items-center space-x-1.5">
+                      <Shield className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Authentication Method</span>
                     </label>
-                    <input
-                      type="password"
-                      value={currentPass}
-                      onChange={(e) => setCurrentPass(e.target.value)}
-                      className="w-full bg-[#0f172a] rounded-lg px-3 py-2 text-slate-100 focus:outline-none font-medium"
-                      placeholder="Enter current password"
-                    />
+                    <div className="bg-[#0f172a]/60 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-semibold text-slate-200">Google Authentication</div>
+                        <div className="text-2xs text-slate-400 mt-0.5">Passwordless sign-in active with your Google account</div>
+                      </div>
+                      <span className="text-2xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">
+                        Active
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-300 block">
-                      New Password
-                    </label>
-                    <input
-                      type="password"
-                      value={newPass}
-                      onChange={(e) => setNewPass(e.target.value)}
-                      className="w-full bg-[#0f172a] rounded-lg px-3 py-2 text-slate-100 focus:outline-none font-medium"
-                      placeholder="Enter new password"
-                    />
-                  </div>
+                  {/* Danger Zone */}
+                  <div className="mt-6 pt-5 border-t border-rose-950/60 space-y-3">
+                    <div className="flex items-center space-x-2 text-rose-400">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Danger Zone</span>
+                    </div>
 
-                  {passMessage && (
-                    <div className="text-2xs text-emerald-400 font-semibold">{passMessage}</div>
-                  )}
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer shadow-[0_0_15px_rgba(37,99,235,0.25)]"
-                    >
-                      Update Password
-                    </button>
+                    <div className="bg-rose-950/20 border border-rose-900/40 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-bold text-rose-200">Delete Account & All Data</div>
+                        <div className="text-2xs text-rose-300/70 mt-0.5 max-w-sm">
+                          Permanently delete your profile, setups, items, and prayer tracker logs. This action cannot be reversed.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteConfirmText('');
+                          setDeleteError('');
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="bg-rose-600/90 hover:bg-rose-600 text-white font-semibold px-3.5 py-2 rounded-xl text-xs transition-colors flex items-center space-x-1.5 shrink-0 self-start sm:self-center cursor-pointer shadow-md shadow-rose-950"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Account</span>
+                      </button>
+                    </div>
                   </div>
-                </form>
+                </div>
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="px-5 py-3.5 flex items-center justify-between text-2xs text-slate-400 bg-[#0f172a] shrink-0">
-              <span>Lifestyle OS v1.0.4</span>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setIsSettingsModalOpen(false)}
-                  className="bg-[#0d121f] hover:bg-slate-800 text-slate-300 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer shadow-2xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsSettingsModalOpen(false)}
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20"
-                >
-                  Save
-                </button>
+            {/* Modal Footer (Version removed; holistic save button) */}
+            <div className="px-5 py-3.5 flex items-center justify-end space-x-2 bg-[#0f172a] shrink-0 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setIsSettingsModalOpen(false)}
+                className="bg-[#0d121f] hover:bg-slate-800 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSettings}
+                disabled={isSaving}
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20 disabled:opacity-50 flex items-center space-x-1.5"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-white" />
+                    <span>Saved</span>
+                  </>
+                ) : (
+                  <span>Save</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Caution & Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-[#0b0f19] border border-rose-900/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl shadow-rose-950/50">
+            {/* Header */}
+            <div className="px-5 py-4 bg-rose-950/30 border-b border-rose-900/40 flex items-center justify-between">
+              <div className="flex items-center space-x-2.5 text-rose-300">
+                <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Permanently Delete Account</h3>
+                  <div className="text-2xs text-rose-300/80">Irreversible action</div>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isDeletingAccount) setIsDeleteModalOpen(false);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Caution Content */}
+            <div className="p-5 space-y-4 text-xs">
+              <div className="bg-rose-950/40 border border-rose-900/60 rounded-xl p-3.5 space-y-2 text-rose-200">
+                <div className="font-semibold text-rose-100 flex items-center gap-1.5">
+                  <span>Warning: This cannot be undone</span>
+                </div>
+                <p className="text-2xs text-rose-200/80 leading-relaxed">
+                  Deleting your account will immediately and permanently erase all your data from the database, including:
+                </p>
+                <ul className="text-2xs space-y-1 list-disc list-inside text-rose-300/90 pl-1">
+                  <li>All setups and curated spaces</li>
+                  <li>All setup items, categories, and cost breakdowns</li>
+                  <li>All daily prayer tracking history, streaks, and settings</li>
+                  <li>Your user profile and authentication record</li>
+                </ul>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <label className="text-2xs font-semibold text-slate-300 block">
+                  To confirm, please type <span className="font-mono font-bold text-rose-400">DELETE</span> below:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE"
+                  disabled={isDeletingAccount}
+                  className="w-full bg-[#070b13] border border-slate-800 focus:border-rose-500/60 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs font-mono font-bold focus:outline-none transition-colors"
+                />
+              </div>
+
+              {deleteError && (
+                <div className="text-2xs text-rose-400 font-semibold bg-rose-950/50 p-2.5 rounded-lg border border-rose-900/40">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="px-5 py-3.5 bg-[#070b13] border-t border-slate-800/80 flex items-center justify-end space-x-2.5">
+              <button
+                type="button"
+                disabled={isDeletingAccount}
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="bg-[#0f172a] hover:bg-slate-800 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText.trim().toLowerCase() !== 'delete' || isDeletingAccount}
+                onClick={handleDeleteAccount}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  deleteConfirmText.trim().toLowerCase() === 'delete' && !isDeletingAccount
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-950'
+                    : 'bg-rose-950/40 text-rose-400/40 cursor-not-allowed border border-rose-900/20'
+                }`}
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting Account...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete My Account Permanently</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -598,5 +757,3 @@ export const Header: React.FC<HeaderProps> = ({
     </>
   );
 };
-
-
