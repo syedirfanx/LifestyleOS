@@ -20,6 +20,9 @@ import {
   Award,
   Flame,
   CheckSquare,
+  Navigation,
+  LocateFixed,
+  Smartphone,
 } from 'lucide-react';
 import {
   PrayerName,
@@ -168,6 +171,122 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
   const qibla = useMemo(() => {
     return getQiblaBearing(latitude, longitude);
   }, [latitude, longitude]);
+
+  // Live Qibla Compass state
+  const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
+  const [isCompassActive, setIsCompassActive] = useState<boolean>(false);
+  const [compassError, setCompassError] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+
+  // Live device orientation listener
+  useEffect(() => {
+    if (!isCompassActive) {
+      setDeviceHeading(null);
+      return;
+    }
+
+    let lastVibrate = 0;
+
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      let heading: number | null = null;
+
+      // iOS Safari provides webkitCompassHeading (0 = North, clockwise)
+      if ((e as any).webkitCompassHeading !== undefined && (e as any).webkitCompassHeading !== null) {
+        heading = (e as any).webkitCompassHeading;
+      } else if (e.alpha !== null && e.alpha !== undefined) {
+        // Android / standard: alpha is degrees counterclockwise from North
+        heading = (360 - e.alpha) % 360;
+      }
+
+      if (heading !== null && !isNaN(heading)) {
+        const rounded = Math.round(heading);
+        setDeviceHeading(rounded);
+
+        // Check if facing within 5 degrees of Kaaba
+        const diff = Math.abs(((qibla.bearing - rounded + 540) % 360) - 180);
+        if (diff <= 5) {
+          const now = Date.now();
+          if (now - lastVibrate > 2000) {
+            lastVibrate = now;
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+              navigator.vibrate([35, 25, 35]);
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('deviceorientationabsolute', handleOrientation as any, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+
+    return () => {
+      window.removeEventListener('deviceorientationabsolute', handleOrientation as any, true);
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+    };
+  }, [isCompassActive, qibla.bearing]);
+
+  const handleToggleCompass = async () => {
+    if (isCompassActive) {
+      setIsCompassActive(false);
+      setDeviceHeading(null);
+      return;
+    }
+
+    setCompassError(null);
+
+    // iOS 13+ requires explicit permission via user interaction
+    if (
+      typeof window !== 'undefined' &&
+      typeof (DeviceOrientationEvent as any) !== 'undefined' &&
+      typeof (DeviceOrientationEvent as any).requestPermission === 'function'
+    ) {
+      try {
+        const res = await (DeviceOrientationEvent as any).requestPermission();
+        if (res !== 'granted') {
+          setCompassError('Motion sensor permission denied in browser.');
+          return;
+        }
+      } catch (err) {
+        setCompassError('Sensor permission request failed.');
+        return;
+      }
+    }
+
+    setIsCompassActive(true);
+  };
+
+  // GPS auto-locate handler
+  const handleDetectLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setCompassError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setIsLocating(true);
+    setCompassError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = parseFloat(pos.coords.latitude.toFixed(4));
+        const lng = parseFloat(pos.coords.longitude.toFixed(4));
+        setLatitude(lat);
+        setLongitude(lng);
+        localStorage.setItem('lifestyle_prayer_lat', String(lat));
+        localStorage.setItem('lifestyle_prayer_lng', String(lng));
+
+        const activeUser = currentUser || auth.currentUser;
+        if (activeUser) {
+          const settingsDocRef = doc(db, 'prayerSettings', activeUser.uid);
+          setDoc(settingsDocRef, { latitude: lat, longitude: lng, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+        }
+        setIsLocating(false);
+      },
+      (err) => {
+        console.warn('Geolocation error:', err);
+        setCompassError('Could not get GPS location. Please allow location access.');
+        setIsLocating(false);
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   // Hijri Date
   const hijriDate = useMemo(() => {
@@ -732,6 +851,8 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                           ? 'bg-gradient-to-r from-[#08201a] to-[#0a1620]'
                           : slot.isCurrent
                           ? 'bg-[#0d221e] ring-1 ring-emerald-500/40'
+                          : slot.isNext
+                          ? 'bg-[#0c141d] ring-1 ring-sky-500/30'
                           : 'bg-[#0c141d] hover:bg-[#101a26]'
                       }`}
                     >
@@ -763,6 +884,11 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                             {slot.isCurrent && (
                               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400">
                                 Current
+                              </span>
+                            )}
+                            {slot.isNext && !slot.isCurrent && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-950 text-sky-400">
+                                Next
                               </span>
                             )}
                           </div>
@@ -840,43 +966,156 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
             {/* Right Sidebar: Qibla & Tasbih */}
             <div className="space-y-4 sm:space-y-6">
               {/* Qibla Compass Card */}
-              <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-5 text-white space-y-4 shadow-md">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Compass className="w-4 h-4 text-emerald-400" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                      Qibla Direction
-                    </h3>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-400">
-                    {qibla.bearing} deg {qibla.cardinal}
-                  </span>
-                </div>
+              {(() => {
+                const isHeadingValid = isCompassActive && deviceHeading !== null;
+                const dialRotation = isHeadingValid ? -deviceHeading : 0;
+                const needleRotation = isHeadingValid
+                  ? (qibla.bearing - deviceHeading + 360) % 360
+                  : qibla.bearing;
+                const diffAngle = isHeadingValid
+                  ? ((qibla.bearing - deviceHeading + 540) % 360) - 180
+                  : null;
+                const isFacingKaaba = diffAngle !== null && Math.abs(diffAngle) <= 5;
 
-                <div className="relative w-36 h-36 sm:w-40 sm:h-40 mx-auto flex items-center justify-center">
-                  <div className="w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-[#060a10] flex items-center justify-center relative shadow-inner">
-                    <span className="absolute top-1 text-2xs font-bold text-slate-400">N</span>
-                    <span className="absolute bottom-1 text-2xs font-bold text-slate-500">S</span>
-                    <span className="absolute left-1.5 text-2xs font-bold text-slate-500">W</span>
-                    <span className="absolute right-1.5 text-2xs font-bold text-slate-500">E</span>
+                return (
+                  <div
+                    className={`bg-[#0c141d] rounded-2xl p-4 sm:p-5 text-white space-y-4 shadow-md transition-all duration-300 ${
+                      isFacingKaaba ? 'ring-2 ring-emerald-400/80 shadow-[0_0_25px_rgba(16,185,129,0.35)]' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Compass className={`w-4 h-4 ${isFacingKaaba ? 'text-emerald-300' : 'text-emerald-400'}`} />
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                          Qibla Direction
+                        </h3>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-400">
+                        {qibla.bearing} deg {qibla.cardinal}
+                      </span>
+                    </div>
 
-                    <div
-                      className="w-full h-full absolute flex items-center justify-center transition-transform duration-700 ease-out"
-                      style={{ transform: `rotate(${qibla.bearing}deg)` }}
-                    >
-                      <div className="w-1.5 h-14 sm:h-16 bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)] -translate-y-5 sm:-translate-y-6"></div>
-                      <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-300 rounded-full absolute"></div>
+                    {/* Compass Dial */}
+                    <div className="relative w-44 h-44 sm:w-48 sm:h-48 mx-auto flex items-center justify-center select-none">
+                      {/* Outer Degree Track & Cardinal Rose */}
+                      <div
+                        className="w-44 h-44 sm:w-48 sm:h-48 rounded-full bg-[#060a10] border border-slate-800 flex items-center justify-center relative shadow-inner transition-transform duration-200 ease-out"
+                        style={{ transform: `rotate(${dialRotation}deg)` }}
+                      >
+                        {/* Cardinals */}
+                        <span className="absolute top-1.5 text-xs font-black text-rose-500">N</span>
+                        <span className="absolute bottom-1.5 text-2xs font-bold text-slate-500">S</span>
+                        <span className="absolute left-2 text-2xs font-bold text-slate-500">W</span>
+                        <span className="absolute right-2 text-2xs font-bold text-slate-500">E</span>
+
+                        {/* Subtle degree crosshairs */}
+                        <div className="absolute inset-4 rounded-full border border-dashed border-slate-800/80 pointer-events-none"></div>
+                        <div className="w-0.5 h-2 bg-slate-700 absolute top-0"></div>
+                        <div className="w-0.5 h-2 bg-slate-800 absolute bottom-0"></div>
+                        <div className="w-2 h-0.5 bg-slate-800 absolute left-0"></div>
+                        <div className="w-2 h-0.5 bg-slate-800 absolute right-0"></div>
+                      </div>
+
+                      {/* Qibla Needle */}
+                      <div
+                        className="w-full h-full absolute inset-0 flex items-center justify-center transition-transform duration-200 ease-out pointer-events-none"
+                        style={{ transform: `rotate(${needleRotation}deg)` }}
+                      >
+                        {/* Needle Body */}
+                        <div className="flex flex-col items-center -translate-y-9 sm:-translate-y-11">
+                          {/* Kaaba Symbol / Arrowhead */}
+                          <div
+                            className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-sm flex items-center justify-center shadow-lg transition-colors ${
+                              isFacingKaaba ? 'bg-emerald-400 text-black shadow-emerald-400/60' : 'bg-[#0f172a] border border-emerald-400 text-emerald-300'
+                            }`}
+                          >
+                            <span className="text-[8px] font-black leading-none">&#x25A0;</span>
+                          </div>
+                          <div
+                            className={`w-1.5 h-12 sm:h-14 rounded-full transition-all ${
+                              isFacingKaaba
+                                ? 'bg-gradient-to-t from-emerald-600 via-emerald-400 to-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.8)]'
+                                : 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                            }`}
+                          ></div>
+                        </div>
+
+                        {/* Counter balance pin */}
+                        <div className="w-1 h-5 bg-slate-700 rounded-full translate-y-6 sm:translate-y-7"></div>
+                        {/* Central Hub */}
+                        <div className="w-3.5 h-3.5 bg-slate-900 border-2 border-emerald-400 rounded-full absolute shadow-md"></div>
+                      </div>
+                    </div>
+
+                    {/* Status & Guidance Readout */}
+                    <div className="text-center space-y-1">
+                      {isHeadingValid ? (
+                        <div className="space-y-0.5">
+                          {isFacingKaaba ? (
+                            <div className="text-xs font-bold text-emerald-400 flex items-center justify-center gap-1">
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Facing Kaaba</span>
+                            </div>
+                          ) : (
+                            <div className="text-xs font-semibold text-sky-400">
+                              {diffAngle !== null && diffAngle > 0
+                                ? `Turn ${Math.round(diffAngle)} deg Right`
+                                : `Turn ${Math.round(Math.abs(diffAngle || 0))} deg Left`}
+                            </div>
+                          )}
+                          <div className="text-2xs text-slate-400 font-mono">
+                            Device Heading: {deviceHeading} deg
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-0.5">
+                          <div className="text-xs text-slate-300">
+                            Facing {qibla.bearing} deg from North
+                          </div>
+                          <div className="text-2xs text-slate-500">
+                            Turn your phone until the needle points straight ahead
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Error Banner */}
+                    {compassError && (
+                      <div className="text-2xs text-rose-300 bg-rose-950/40 border border-rose-800/40 rounded-xl p-2 text-center">
+                        {compassError}
+                      </div>
+                    )}
+
+                    {/* Action Controls */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        onClick={handleToggleCompass}
+                        className={`py-2 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-[38px] ${
+                          isCompassActive
+                            ? 'bg-emerald-950 text-emerald-300 ring-1 ring-emerald-500/50 hover:bg-emerald-900'
+                            : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isCompassActive ? 'Stop Live' : 'Live Compass'}</span>
+                      </button>
+
+                      <button
+                        onClick={handleDetectLocation}
+                        disabled={isLocating}
+                        className="py-2 px-3 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-[38px] disabled:opacity-50"
+                      >
+                        <LocateFixed className={`w-3.5 h-3.5 shrink-0 ${isLocating ? 'animate-spin' : ''}`} />
+                        <span>{isLocating ? 'Locating...' : 'GPS Detect'}</span>
+                      </button>
+                    </div>
+
+                    <div className="text-center text-2xs text-slate-500 font-mono">
+                      {latitude.toFixed(2)} deg N, {longitude.toFixed(2)} deg E
                     </div>
                   </div>
-                </div>
-
-                <div className="text-center space-y-1">
-                  <div className="text-xs text-slate-400">Facing Makkah al-Mukarramah</div>
-                  <div className="text-2xs text-slate-500 font-mono">
-                    {latitude.toFixed(2)} deg N, {longitude.toFixed(2)} deg E
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Digital Tasbih (Dhikr Companion) */}
               <div className="bg-[#0c141d] rounded-2xl p-4 sm:p-5 text-white space-y-4 shadow-md">
@@ -1234,13 +1473,15 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                   {PRAYER_KEYS.map((key) => {
                     const meta = PRAYER_METADATA[key];
                     const stat = monthStats.prayerBreakdown[key];
+                    const prayerDisplayName = key === 'dhuhr' ? 'Dhuhr / Jummah' : meta.name;
+                    const prayerArabicName = key === 'dhuhr' ? 'الظهر / الجمعة' : meta.arabicName;
 
                     return (
                       <div key={key} className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-200">{meta.name}</span>
-                            <span className="text-slate-500 font-arabic">{meta.arabicName}</span>
+                            <span className="font-bold text-slate-200">{prayerDisplayName}</span>
+                            <span className="text-slate-500 font-arabic">{prayerArabicName}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-slate-400 text-2xs">
@@ -1423,7 +1664,7 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white">
-                  Update {PRAYER_METADATA[editingPrayer].name}
+                  Update {selectedDate.getDay() === 5 && editingPrayer === 'dhuhr' ? 'Jummah' : PRAYER_METADATA[editingPrayer].name}
                 </h3>
                 <p className="text-xs text-slate-400">Select status for this prayer</p>
               </div>

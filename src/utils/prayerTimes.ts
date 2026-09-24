@@ -168,35 +168,57 @@ export function calculatePrayerTimes(
 
   const order: (PrayerName | 'sunrise')[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'];
 
-  let nextPrayerId: PrayerName | 'sunrise' | null = null;
-  let activePrayerId: PrayerName | 'sunrise' | null = null;
+  let nextPrayerId: PrayerName | null = null;
+  let activePrayerId: PrayerName | null = null;
 
   if (isToday) {
-    for (let i = 0; i < order.length; i++) {
-      const pId = order[i];
-      if (rawMinutes[pId] > currentMinutes) {
-        nextPrayerId = pId;
-        activePrayerId = i > 0 ? order[i - 1] : order[order.length - 1];
-        break;
-      }
-    }
-    if (!nextPrayerId) {
+    if (currentMinutes < rawMinutes.fajr) {
+      // 12:00 AM midnight to Fajr: Isha ended at midnight, Fajr has not started yet
+      activePrayerId = null;
       nextPrayerId = 'fajr';
+    } else if (currentMinutes < rawMinutes.sunrise) {
+      // Fajr waqt: from Fajr until Sunrise
+      activePrayerId = 'fajr';
+      nextPrayerId = 'dhuhr';
+    } else if (currentMinutes < rawMinutes.dhuhr) {
+      // Sunrise to Dhuhr: Fajr waqt ended at sunrise, Dhuhr has not started yet
+      activePrayerId = null;
+      nextPrayerId = 'dhuhr';
+    } else if (currentMinutes < rawMinutes.asr) {
+      // Dhuhr waqt: from Dhuhr until Asr
+      activePrayerId = 'dhuhr';
+      nextPrayerId = 'asr';
+    } else if (currentMinutes < rawMinutes.maghrib) {
+      // Asr waqt: from Asr until Maghrib
+      activePrayerId = 'asr';
+      nextPrayerId = 'maghrib';
+    } else if (currentMinutes < rawMinutes.isha) {
+      // Maghrib waqt: from Maghrib until Isha
+      activePrayerId = 'maghrib';
+      nextPrayerId = 'isha';
+    } else {
+      // Isha waqt: from Isha until 12:00 AM midnight
       activePrayerId = 'isha';
+      nextPrayerId = 'fajr';
     }
   }
 
+  const isFriday = date.getDay() === 5;
+
   const slots: PrayerTimeSlot[] = order.map((id) => {
     const mins = rawMinutes[id];
+    const isSunrise = id === 'sunrise';
+    const isJummah = isFriday && id === 'dhuhr';
+
     return {
       id,
-      name: PRAYER_METADATA[id].name,
-      arabicName: PRAYER_METADATA[id].arabicName,
+      name: isJummah ? 'Jummah' : PRAYER_METADATA[id].name,
+      arabicName: isJummah ? 'الجمعة' : PRAYER_METADATA[id].arabicName,
       timeStr: formatMinutesTo12Hour(mins),
       minutesFromMidnight: mins,
       isPassed: isToday ? mins < currentMinutes : false,
-      isCurrent: isToday && activePrayerId === id,
-      isNext: isToday && nextPrayerId === id,
+      isCurrent: isToday && !isSunrise && activePrayerId === id,
+      isNext: isToday && !isSunrise && nextPrayerId === id,
     };
   });
 

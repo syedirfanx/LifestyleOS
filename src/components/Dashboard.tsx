@@ -90,28 +90,6 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
   const purchasedRecurringItems = recurringItems.filter(i => i.status === 'Active');
   const totalMonthlyCommitment = monthlyEMI + monthlyLoans + purchasedRecurringItems.reduce((sum, i) => sum + (i.paymentDetails?.monthlyCost || i.estimatedPrice || 0), 0);
 
-  const todayPrayerCount = React.useMemo(() => {
-    try {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, '0');
-      const d = String(now.getDate()).padStart(2, '0');
-      const todayKey = `${y}-${m}-${d}`;
-      const cached = localStorage.getItem('lifestyle_prayer_records');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        const todayRec = parsed[todayKey];
-        if (todayRec?.prayers) {
-          const keys = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
-          return keys.filter((k: string) => todayRec.prayers[k] === 'prayed' || todayRec.prayers[k] === 'jamaah' || todayRec.prayers[k] === 'late').length;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return 0;
-  }, []);
-
   const getSetupCost = (setupId: string) => {
     const isRecurring = setups.find(s => s.id === setupId)?.category === 'Recurring Expenses';
     return items
@@ -235,10 +213,35 @@ const recurringSetupIds = setups.filter(s => s.category === 'Recurring Expenses'
             </div>
           </button>
 
-          <button onClick={() => onNavigateToTracker?.('prayer')} className="relative overflow-hidden bg-[#0d121f] p-5 rounded-2xl flex items-center justify-between hover:bg-[#131a2b] transition-colors group">
-            <span className="text-sm font-bold text-slate-200 group-hover:text-teal-400 transition-colors">Prayer Tracker</span>
-            <div className="text-xl font-black text-teal-400">
-              {todayPrayerCount} <span className="text-xs font-semibold text-slate-500">/ 5</span>
+          <button
+            onClick={() => onNavigateToTracker?.('prayer')}
+            className="relative overflow-hidden bg-gradient-to-br from-[#064e3b] via-[#043d2e] to-[#022c22] p-5 rounded-2xl flex items-center justify-between hover:from-[#075e47] hover:via-[#054d3a] hover:to-[#03372b] transition-all duration-300 group shadow-[0_4px_20px_rgba(5,150,105,0.22)] cursor-pointer text-left"
+          >
+            <span className="text-sm font-bold text-white group-hover:text-emerald-100 transition-colors tracking-wide relative z-10">
+              Prayer Tracker
+            </span>
+
+            {/* Simple big mosque watermark at right side */}
+            <div className="absolute -right-1 -bottom-5 sm:-bottom-6 pointer-events-none select-none text-emerald-300/20 group-hover:text-emerald-200/30 group-hover:scale-105 transition-all duration-300">
+              <svg
+                viewBox="0 0 100 100"
+                className="w-20 h-20 sm:w-24 sm:h-24 fill-current"
+                aria-hidden="true"
+              >
+                <path d="M50 7a4 4 0 1 1-3 6.7 3 3 0 1 0 3-6.7z" />
+                <path d="M34 42c0-14 9-20 16-28 7 8 16 14 16 28z" />
+                <path d="M23 48c0-8 4-12 8-16 4 4 8 8 8 16z" />
+                <path d="M61 48c0-8 4-12 8-16 4 4 8 8 8 16z" />
+                <path d="M22 46h56v54H60V74c0-5.5-4.5-10-10-10s-10 4.5-10 10v26H22z" />
+                <path d="M12 98V38h6v60z" />
+                <path d="M10 36h10v3H10z" />
+                <path d="M13 25c0-4 2-7 2-7s2 3 2 7v11h-4z" />
+                <circle cx="15" cy="15" r="1.5" />
+                <path d="M82 98V38h6v60z" />
+                <path d="M80 36h10v3H80z" />
+                <path d="M83 25c0-4 2-7 2-7s2 3 2 7v11h-4z" />
+                <circle cx="85" cy="15" r="1.5" />
+              </svg>
             </div>
           </button>
         </div>
