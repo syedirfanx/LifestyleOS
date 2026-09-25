@@ -179,7 +179,7 @@ export function calculatePrayerTimes(
     } else if (currentMinutes < rawMinutes.sunrise) {
       // Fajr waqt: from Fajr until Sunrise
       activePrayerId = 'fajr';
-      nextPrayerId = 'dhuhr';
+      nextPrayerId = null;
     } else if (currentMinutes < rawMinutes.dhuhr) {
       // Sunrise to Dhuhr: Fajr waqt ended at sunrise, Dhuhr has not started yet
       activePrayerId = null;
@@ -187,23 +187,24 @@ export function calculatePrayerTimes(
     } else if (currentMinutes < rawMinutes.asr) {
       // Dhuhr waqt: from Dhuhr until Asr
       activePrayerId = 'dhuhr';
-      nextPrayerId = 'asr';
+      nextPrayerId = null;
     } else if (currentMinutes < rawMinutes.maghrib) {
       // Asr waqt: from Asr until Maghrib
       activePrayerId = 'asr';
-      nextPrayerId = 'maghrib';
+      nextPrayerId = null;
     } else if (currentMinutes < rawMinutes.isha) {
       // Maghrib waqt: from Maghrib until Isha
       activePrayerId = 'maghrib';
-      nextPrayerId = 'isha';
+      nextPrayerId = null;
     } else {
       // Isha waqt: from Isha until 12:00 AM midnight
       activePrayerId = 'isha';
-      nextPrayerId = 'fajr';
+      nextPrayerId = null;
     }
   }
 
   const isFriday = date.getDay() === 5;
+  const hasCurrent = isToday && activePrayerId !== null;
 
   const slots: PrayerTimeSlot[] = order.map((id) => {
     const mins = rawMinutes[id];
@@ -218,7 +219,7 @@ export function calculatePrayerTimes(
       minutesFromMidnight: mins,
       isPassed: isToday ? mins < currentMinutes : false,
       isCurrent: isToday && !isSunrise && activePrayerId === id,
-      isNext: isToday && !isSunrise && nextPrayerId === id,
+      isNext: isToday && !isSunrise && !hasCurrent && nextPrayerId === id,
     };
   });
 

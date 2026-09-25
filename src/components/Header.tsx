@@ -588,13 +588,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   </div>
 
-                  {/* Danger Zone */}
-                  <div className="mt-6 pt-5 border-t border-rose-950/60 space-y-3">
-                    <div className="flex items-center space-x-2 text-rose-400">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Danger Zone</span>
-                    </div>
-
+                  <div className="mt-6 pt-5 border-t border-slate-800/80 space-y-3">
                     <div className="bg-rose-950/20 border border-rose-900/40 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <div className="text-xs font-bold text-rose-200">Delete Account & All Data</div>
@@ -620,36 +614,38 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Modal Footer (Version removed; holistic save button) */}
-            <div className="px-5 py-3.5 flex items-center justify-end space-x-2 bg-[#0f172a] shrink-0 border-t border-slate-800/80">
-              <button
-                type="button"
-                onClick={() => setIsSettingsModalOpen(false)}
-                className="bg-[#0d121f] hover:bg-slate-800 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveSettings}
-                disabled={isSaving}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20 disabled:opacity-50 flex items-center space-x-1.5"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Saving...</span>
-                  </>
-                ) : saveSuccess ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-white" />
-                    <span>Saved</span>
-                  </>
-                ) : (
-                  <span>Save</span>
-                )}
-              </button>
-            </div>
+            {/* Modal Footer (only in account and preferences, not in security) */}
+            {activeTab !== 'security' && (
+              <div className="px-5 py-3.5 flex items-center justify-end space-x-2 bg-[#0f172a] shrink-0 border-t border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsModalOpen(false)}
+                  className="bg-[#0d121f] hover:bg-slate-800 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSettings}
+                  disabled={isSaving}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-blue-400/20 disabled:opacity-50 flex items-center space-x-1.5"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : saveSuccess ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-white" />
+                      <span>Saved</span>
+                    </>
+                  ) : (
+                    <span>Save</span>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
