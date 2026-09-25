@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { StarsBackground } from './StarsBackground';
 import { Footer } from './Footer';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface LandingPageProps {
   onNavigateToAuth: (mode: 'login' | 'register') => void;
@@ -227,6 +228,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToAuth }) =>
           </motion.h1>
         </div>
         <div className="flex items-center space-x-2 sm:space-x-3">
+          <PWAInstallButton />
           <button 
             onClick={() => onNavigateToAuth('login')}
             className="text-xs sm:text-sm font-semibold text-slate-300 hover:text-white px-3.5 py-2 transition-colors cursor-pointer"

@@ -12,6 +12,7 @@ import { PrayerTrackerPage } from './components/PrayerTrackerPage';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
 import { Footer } from './components/Footer';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, doc, setDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
@@ -440,6 +441,7 @@ export default function App() {
         onCreateSetup={handleCreateSetup}
       />
 
+      <OfflineIndicator />
     </div>
   );
 }

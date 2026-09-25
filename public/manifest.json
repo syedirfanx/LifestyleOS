@@ -1,0 +1,49 @@
+{
+  "id": "/",
+  "name": "Lifestyle OS",
+  "short_name": "Lifestyle OS",
+  "description": "Estimate setups, track daily prayers, and organize personal spaces.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#090d16",
+  "background_color": "#090d16",
+  "categories": ["lifestyle", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Daily Prayer",
+      "short_name": "Prayers",
+      "description": "View prayer times and tracker",
+      "url": "/?view=prayer",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Setup Estimator",
+      "short_name": "Setups",
+      "description": "Manage dream setups and items",
+      "url": "/",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

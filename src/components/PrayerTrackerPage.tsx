@@ -1711,11 +1711,11 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
             {/* Compass Dial */}
             {(() => {
               const isHeadingValid = isCompassActive && deviceHeading !== null;
-              const needleRotation = isHeadingValid ? -deviceHeading : 0;
               const diffAngle = isHeadingValid
                 ? ((qibla.bearing - deviceHeading + 540) % 360) - 180
-                : null;
-              const isFacingKaaba = diffAngle !== null && Math.abs(diffAngle) <= 5;
+                : 0;
+              const isFacingKaaba = isHeadingValid && Math.abs(diffAngle) <= 5;
+              const needleRotation = isHeadingValid ? diffAngle : 0;
 
               return (
                 <div className="space-y-4">
@@ -1724,105 +1724,130 @@ export const PrayerTrackerPage: React.FC<PrayerTrackerPageProps> = ({
                       isFacingKaaba ? 'ring-4 ring-emerald-400/80 shadow-[0_0_35px_rgba(16,185,129,0.4)]' : ''
                     }`}
                   >
-                    {/* Fixed Outer Degree Track & Cardinal Rose */}
-                    <div className="w-56 h-56 sm:w-60 sm:h-60 rounded-full bg-[#060a10] border-2 border-slate-800 flex items-center justify-center relative shadow-inner">
-                      {/* Cardinals */}
-                      <span className="absolute top-2 text-xs font-black text-rose-500">N</span>
-                      <span className="absolute bottom-2 text-2xs font-bold text-slate-500">S</span>
-                      <span className="absolute left-2.5 text-2xs font-bold text-slate-500">W</span>
-                      <span className="absolute right-2.5 text-2xs font-bold text-slate-500">E</span>
+                    {/* Fixed Outer Degree Track & Precision Dial */}
+                    <div className="w-56 h-56 sm:w-60 sm:h-60 rounded-full bg-[#060a10] border-2 border-slate-800 flex items-center justify-center relative shadow-inner overflow-hidden">
+                      {/* Dial Markings */}
+                      <svg viewBox="0 0 200 200" className="w-full h-full absolute inset-0 pointer-events-none">
+                        <circle cx="100" cy="100" r="92" fill="none" stroke="#1e293b" strokeWidth="1" strokeDasharray="2 6" />
+                        <circle cx="100" cy="100" r="80" fill="none" stroke="#1e293b" strokeWidth="0.75" />
+                        <circle cx="100" cy="100" r="48" fill="none" stroke="#0f172a" strokeWidth="0.75" />
+                        {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
+                          <line
+                            key={deg}
+                            x1="100"
+                            y1="8"
+                            x2="100"
+                            y2={deg === 0 ? "20" : deg % 90 === 0 ? "17" : "14"}
+                            stroke={deg === 0 ? "#10b981" : deg % 90 === 0 ? "#475569" : "#1e293b"}
+                            strokeWidth={deg === 0 ? "2.5" : deg % 90 === 0 ? "1.5" : "1"}
+                            transform={`rotate(${deg} 100 100)`}
+                          />
+                        ))}
+                      </svg>
 
-                      {/* Subtle degree crosshairs */}
-                      <div className="absolute inset-5 rounded-full border border-dashed border-slate-800/80 pointer-events-none"></div>
-                      <div className="w-0.5 h-2.5 bg-slate-700 absolute top-0"></div>
-                      <div className="w-0.5 h-2.5 bg-slate-800 absolute bottom-0"></div>
-                      <div className="w-2.5 h-0.5 bg-slate-800 absolute left-0"></div>
-                      <div className="w-2.5 h-0.5 bg-slate-800 absolute right-0"></div>
+                      {/* Cardinal Indicators */}
+                      <span className="absolute bottom-2.5 text-2xs font-bold text-slate-500">S</span>
+                      <span className="absolute left-3 text-2xs font-bold text-slate-500">W</span>
+                      <span className="absolute right-3 text-2xs font-bold text-slate-500">E</span>
                     </div>
 
-                    {/* Mecca Sign / Emblem at Fixed Direction */}
-                    <div
-                      className="w-full h-full absolute inset-0 flex items-center justify-center pointer-events-none"
-                      style={{ transform: `rotate(${qibla.bearing}deg)` }}
-                    >
-                      {/* Mecca indicator at the fixed bearing */}
-                      <div className="flex flex-col items-center -translate-y-[84px] sm:-translate-y-[92px]">
-                        <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 shadow-md ${
-                            isFacingKaaba
-                              ? 'bg-[#090d16] ring-2 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-110'
-                              : 'bg-[#0c1320] border border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                          }`}
-                        >
-                          {/* Detailed Kaaba Icon */}
-                          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none">
-                            <rect
-                              x="3"
-                              y="3"
-                              width="18"
-                              height="18"
-                              rx="2.5"
-                              fill="#070a10"
-                              stroke={isFacingKaaba ? '#34d399' : '#10b981'}
-                              strokeWidth="1.25"
-                            />
-                            <path d="M3 8.5H21" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
-                            <path d="M4 8.5H20" stroke="#fef08a" strokeWidth="1" strokeDasharray="1.5 1.5" />
-                            <rect x="6.5" y="11.5" width="4" height="6.5" rx="0.5" fill="#f59e0b" stroke="#d97706" strokeWidth="0.5" />
-                            <line x1="14" y1="12" x2="19" y2="12" stroke="#1e293b" strokeWidth="0.75" />
-                            <line x1="14" y1="15" x2="19" y2="15" stroke="#1e293b" strokeWidth="0.75" />
-                          </svg>
-                        </div>
-
-                        {/* Mecca label tag */}
-                        <span
-                          className={`text-[8px] font-bold tracking-wider uppercase mt-1 px-1.5 py-0.5 rounded shadow-sm border transition-colors ${
-                            isFacingKaaba
-                              ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/80 font-extrabold'
-                              : 'bg-slate-900/90 text-slate-300 border-slate-700 font-semibold'
-                          }`}
-                        >
-                          Mecca
-                        </span>
-
-                        {/* Direction pointer tick */}
-                        <div
-                          className={`w-0.5 h-2.5 rounded-full mt-0.5 transition-all ${
-                            isFacingKaaba
-                              ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]'
-                              : 'bg-emerald-500/80'
-                          }`}
-                        ></div>
+                    {/* Mecca Direction Marker at Top Center */}
+                    <div className="absolute top-2 z-20 flex flex-col items-center pointer-events-none">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg ${
+                          isFacingKaaba
+                            ? 'bg-[#091512] border-2 border-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.8)] scale-110'
+                            : 'bg-[#0a121e] border border-emerald-500/60 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                        }`}
+                      >
+                        {/* Kaaba Icon */}
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none">
+                          <rect
+                            x="3"
+                            y="3"
+                            width="18"
+                            height="18"
+                            rx="2.5"
+                            fill="#070a10"
+                            stroke={isFacingKaaba ? '#34d399' : '#10b981'}
+                            strokeWidth="1.25"
+                          />
+                          <path d="M3 8.5H21" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
+                          <path d="M4 8.5H20" stroke="#fef08a" strokeWidth="1" strokeDasharray="1.5 1.5" />
+                          <rect x="6.5" y="11.5" width="4" height="6.5" rx="0.5" fill="#f59e0b" stroke="#d97706" strokeWidth="0.5" />
+                          <line x1="14" y1="12" x2="19" y2="12" stroke="#1e293b" strokeWidth="0.75" />
+                          <line x1="14" y1="15" x2="19" y2="15" stroke="#1e293b" strokeWidth="0.75" />
+                        </svg>
                       </div>
 
-                      {/* Radial dashed line towards Mecca indicator */}
-                      <div
-                        className={`w-0.5 h-10 -translate-y-6 pointer-events-none transition-all ${
-                          isFacingKaaba ? 'bg-emerald-400/40' : 'bg-emerald-500/20'
+                      <span
+                        className={`text-[8px] font-bold tracking-wider uppercase mt-1 px-1.5 py-0.5 rounded shadow-sm border transition-colors ${
+                          isFacingKaaba
+                            ? 'bg-emerald-950 text-emerald-300 border-emerald-500/80 font-extrabold'
+                            : 'bg-slate-900/90 text-slate-300 border-slate-700 font-semibold'
                         }`}
-                        style={{ borderLeft: '1px dashed rgba(16, 185, 129, 0.4)' }}
+                      >
+                        Mecca
+                      </span>
+
+                      {/* Direction pointer tick towards center */}
+                      <div
+                        className={`w-0.5 h-2 rounded-full mt-0.5 transition-all ${
+                          isFacingKaaba
+                            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]'
+                            : 'bg-emerald-500/80'
+                        }`}
                       ></div>
                     </div>
 
-                    {/* Magnetic Compass Needle (North / South pointer) */}
+                    {/* Precision Compass Needle */}
                     <div
-                      className="w-full h-full absolute inset-0 flex items-center justify-center transition-transform duration-200 ease-out pointer-events-none"
+                      className="w-full h-full absolute inset-0 pointer-events-none transition-transform duration-200 ease-out z-10"
                       style={{ transform: `rotate(${needleRotation}deg)` }}
                     >
-                      {/* North Pointer (Red) */}
-                      <div className="flex flex-col items-center -translate-y-7 sm:-translate-y-8">
-                        <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[36px] border-b-rose-500 drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]"></div>
-                      </div>
+                      <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]">
+                        {/* Forward Tip (pointing towards Mecca) */}
+                        <polygon
+                          points="100,42 93,100 100,100"
+                          fill={isFacingKaaba ? '#34d399' : '#f43f5e'}
+                        />
+                        <polygon
+                          points="100,42 107,100 100,100"
+                          fill={isFacingKaaba ? '#059669' : '#e11d48'}
+                        />
+                        <line
+                          x1="100"
+                          y1="42"
+                          x2="100"
+                          y2="100"
+                          stroke={isFacingKaaba ? '#a7f3d0' : '#fda4af'}
+                          strokeWidth="0.75"
+                        />
 
-                      {/* South Pointer (Slate) */}
-                      <div className="flex flex-col items-center translate-y-7 sm:translate-y-8">
-                        <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[36px] border-t-slate-500 drop-shadow-sm"></div>
-                      </div>
+                        {/* South Counterweight */}
+                        <polygon
+                          points="100,154 94,100 100,100"
+                          fill="#64748b"
+                        />
+                        <polygon
+                          points="100,154 106,100 100,100"
+                          fill="#475569"
+                        />
+                        <line
+                          x1="100"
+                          y1="100"
+                          x2="100"
+                          y2="154"
+                          stroke="#94a3b8"
+                          strokeWidth="0.75"
+                        />
 
-                      {/* Central Pivot Hub */}
-                      <div className="w-4 h-4 bg-[#0e1622] border-2 border-slate-600 rounded-full absolute shadow-md flex items-center justify-center z-10">
-                        <div className="w-1.5 h-1.5 bg-rose-500 rounded-full shadow-inner"></div>
-                      </div>
+                        {/* Central Pivot Hub */}
+                        <circle cx="100" cy="100" r="11" fill="#0b111a" stroke="#475569" strokeWidth="2" />
+                        <circle cx="100" cy="100" r="6" fill="#1e293b" />
+                        <circle cx="100" cy="100" r="3" fill={isFacingKaaba ? '#34d399' : '#f43f5e'} />
+                        <circle cx="99" cy="99" r="1" fill="#ffffff" />
+                      </svg>
                     </div>
                   </div>
 
